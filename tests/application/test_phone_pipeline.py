@@ -12,7 +12,7 @@ sys.path.insert(
 from _phone_harness import make_jpeg
 
 from navigator.bootstrap.config import apply_overrides, resolve
-from navigator.bootstrap.main import _parse, _run
+from navigator.bootstrap.main import _parse, run
 
 
 def _settings(port):
@@ -38,7 +38,7 @@ async def test_phone_frames_to_hazard_pcm():
 
     port = unused_port()
     settings = _settings(port)
-    task = asyncio.create_task(_run(settings, 15.0))
+    task = asyncio.create_task(run(settings, 15.0))
     for _ in range(100):
         await asyncio.sleep(0.05)
         try:

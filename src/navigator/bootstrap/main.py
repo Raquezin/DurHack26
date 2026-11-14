@@ -65,12 +65,15 @@ async def _enter(stack, obj):
     return obj
 
 
-async def _run(settings, duration_s) -> None:
+async def run(settings, duration_s, provided=None) -> None:
+    provided = provided or {}
     secrets = Secrets.load()
     offset_ns = int(settings.deadline_offset_ms * 1_000_000)
     async with contextlib.AsyncExitStack() as stack:
         resources = adapters.Resources()
-        clock = adapters.build("clock", settings, None, secrets, resources)
+        clock = provided.get("clock") or adapters.build(
+            "clock", settings, None, secrets, resources
+        )
         if "phone" in (
             settings.adapters["frame_source"],
             settings.adapters["audio_sink"],
@@ -82,7 +85,9 @@ async def _run(settings, duration_s) -> None:
             )
         built = {}
         for port in _SERVICE_PORTS:
-            obj = adapters.build(port, settings, clock, secrets, resources)
+            obj = provided.get(port) or adapters.build(
+                port, settings, clock, secrets, resources
+            )
             built[port] = await _enter(stack, obj)
         voice_key = _voice_key(settings, secrets)
         cache = PhraseCache(
@@ -160,6 +165,6 @@ async def _run(settings, duration_s) -> None:
 def main(argv=None) -> None:
     settings, duration_s = _parse(sys.argv[1:] if argv is None else argv)
     try:
-        asyncio.run(_run(settings, duration_s))
+        asyncio.run(run(settings, duration_s))
     except KeyboardInterrupt:
         pass
