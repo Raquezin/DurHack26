@@ -17,3 +17,4 @@ class GuidanceInstruction:
     text: str
     frame_id: int
     t_capture_ns: int
+    tags: tuple[str, ...] = ()

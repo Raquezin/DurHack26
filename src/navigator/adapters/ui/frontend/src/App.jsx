@@ -8,6 +8,7 @@ import { speechDurationMs } from "./speech.js";
 
 const GUIDANCE_MATCH_MS = 6000;
 const HAZARD_HOLD_MS = 2000;
+const TAGS_HOLD_MS = 12000;
 const WAITING_TEXT = "Waiting for guidance";
 
 export function App() {
@@ -18,8 +19,10 @@ export function App() {
   const [hazard, setHazard] = useState(null);
   const [link, setLink] = useState("offline");
   const [stages, setStages] = useState([]);
+  const [tags, setTags] = useState([]);
   const speechTimer = useRef(null);
   const hazardTimer = useRef(null);
+  const tagsTimer = useRef(null);
   const guidanceTexts = useRef([]);
 
   const stopSpeaking = useCallback(() => {
@@ -57,6 +60,12 @@ export function App() {
     hazardTimer.current = setTimeout(() => setHazard(null), HAZARD_HOLD_MS);
   }, []);
 
+  const showTags = useCallback((event) => {
+    clearTimeout(tagsTimer.current);
+    setTags(event.tags);
+    tagsTimer.current = setTimeout(() => setTags([]), TAGS_HOLD_MS);
+  }, []);
+
   const onFeedsPreview = feeds.onPreview;
   useEffect(() => {
     return connect({
@@ -69,11 +78,12 @@ export function App() {
           stopSpeaking();
         else if (event.type === "timing") setStages(event.stages);
         else if (event.type === "hazard") showHazard(event);
+        else if (event.type === "tags") showTags(event);
         else if (event.type === "guidance_text")
           guidanceTexts.current.push({ text: event.delta, at: Date.now() });
       },
     });
-  }, [onFeedsPreview, startSpeaking, stopSpeaking, showHazard]);
+  }, [onFeedsPreview, startSpeaking, stopSpeaking, showHazard, showTags]);
 
   useEffect(() => {
     document.body.dataset.link = link;
@@ -81,7 +91,7 @@ export function App() {
 
   return (
     <main>
-      <Feeds feeds={feeds} hazard={hazard} link={link} />
+      <Feeds feeds={feeds} hazard={hazard} tags={tags} link={link} />
       <Voice speaking={speaking} label={label} text={text} />
       <Latency stages={stages} />
     </main>

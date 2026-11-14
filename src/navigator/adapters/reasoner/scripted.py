@@ -7,11 +7,16 @@ from navigator.domain.phrases import PhraseId
 
 class ScriptedSceneReasoner:
     def __init__(
-        self, text: str, phrase: PhraseId | None, delay_s: float
+        self,
+        text: str,
+        phrase: PhraseId | None,
+        delay_s: float,
+        tags: tuple[str, ...] = (),
     ) -> None:
         self._text = text
         self._phrase = phrase
         self._delay_s = delay_s
+        self._tags = tags
 
     async def advise(
         self, request: GuidanceRequest
@@ -22,4 +27,5 @@ class ScriptedSceneReasoner:
             text=self._text,
             frame_id=request.geometry.frame_id,
             t_capture_ns=request.geometry.t_capture_ns,
+            tags=self._tags,
         )

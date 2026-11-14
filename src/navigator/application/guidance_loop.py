@@ -4,7 +4,7 @@ from dataclasses import replace
 
 from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.application.scene_board import SceneBoard
-from navigator.domain.events import GuidanceTextEvent
+from navigator.domain.events import GuidanceTextEvent, TagsEvent
 from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
@@ -21,12 +21,15 @@ from navigator.domain.policies.trigger import (
     still_valid,
 )
 from navigator.domain.speech import Priority, Utterance
+from navigator.domain.tags import has_road_crossing
 from navigator.ports.clock import Clock
 from navigator.ports.event_publisher import EventPublisher
 from navigator.ports.scene_reasoner import SceneReasoner
 
 _RECENT_MAX = 5
 _LOCAL_DEADLINE_NS = 1_000_000_000
+_ROAD_HOLD_NS = 12_000_000_000
+_OPEN_PATH = (PhraseId.GO_STRAIGHT, PhraseId.PATH_CLEAR)
 
 
 class GuidanceLoop:
@@ -55,6 +58,7 @@ class GuidanceLoop:
         self._last_request_ns: int | None = None
         self._last_request: SceneGeometry | None = None
         self._steering_state = SteeringState()
+        self._road_until_ns = 0
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
 
@@ -77,12 +81,16 @@ class GuidanceLoop:
                 with suppress(asyncio.CancelledError):
                     await self._task
 
+    def _road_ahead(self) -> bool:
+        return self._clock.now_ns() < self._road_until_ns
+
     def _steer(self, geometry: SceneGeometry) -> None:
+        wanted = steer(geometry, self._steering)
+        if wanted in _OPEN_PATH and self._road_ahead():
+            # Depth sees a road as open floor; only the camera knows better.
+            wanted = None
         self._steering_state, phrase = advise(
-            self._steering_state,
-            steer(geometry, self._steering),
-            self._clock.now_ns(),
-            self._steering,
+            self._steering_state, wanted, self._clock.now_ns(), self._steering
         )
         if phrase is not None:
             deadline_ns = geometry.t_capture_ns + _LOCAL_DEADLINE_NS - self._offset_ns
@@ -129,19 +137,44 @@ class GuidanceLoop:
     def _deliver(
         self, asked: SceneGeometry, instruction: GuidanceInstruction, deadline_ns: int
     ) -> None:
+        self._note_tags(asked, instruction.tags)
+        if has_road_crossing(instruction.tags):
+            self._announce(PhraseId.ROAD_CROSSING, asked, deadline_ns)
+            return
+        if not instruction.text or (
+            instruction.phrase in _OPEN_PATH and self._road_ahead()
+        ):
+            return
         latest = self._board.latest()
         if latest is not None and not (
             still_valid(asked, latest.geometry, self._settings)
             and permits(latest.geometry, instruction.phrase, self._steering)
         ):
             return
+        self._announce(instruction.phrase, asked, deadline_ns, instruction.text)
+
+    def _note_tags(self, asked: SceneGeometry, tags: tuple[str, ...]) -> None:
+        if not tags:
+            return
+        self._events.publish(TagsEvent(frame_id=asked.frame_id, tags=tags))
+        crossing = has_road_crossing(tags)
+        self._road_until_ns = self._clock.now_ns() + _ROAD_HOLD_NS if crossing else 0
+
+    def _announce(
+        self,
+        phrase: PhraseId | None,
+        asked: SceneGeometry,
+        deadline_ns: int,
+        text: str | None = None,
+    ) -> None:
+        text = text if text is not None else PHRASE_TEXT[phrase]
         self._events.publish(
-            GuidanceTextEvent(request_id=asked.frame_id, delta=instruction.text, final=True)
+            GuidanceTextEvent(request_id=asked.frame_id, delta=text, final=True)
         )
         self._steering_state = replace(
-            self._steering_state, spoken=instruction.phrase, spoken_ns=self._clock.now_ns()
+            self._steering_state, spoken=phrase, spoken_ns=self._clock.now_ns()
         )
-        self._speak(instruction.phrase, instruction.text, asked, deadline_ns)
+        self._speak(phrase, text, asked, deadline_ns)
 
     def _speak(
         self, phrase: PhraseId | None, text: str, geometry: SceneGeometry, deadline_ns: int

@@ -46,6 +46,13 @@ class GuidanceTextEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class TagsEvent:
+    frame_id: int
+    tags: tuple[str, ...]
+    type: ClassVar[str] = "tags"
+
+
+@dataclass(frozen=True, slots=True)
 class UtteranceEvent:
     text: str
     priority: Priority
@@ -80,6 +87,7 @@ Event = (
     GeometryEvent
     | HazardEvent
     | GuidanceTextEvent
+    | TagsEvent
     | UtteranceEvent
     | TimingEvent
     | PreviewEvent

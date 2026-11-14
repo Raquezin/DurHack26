@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { Hazard } from "./Hazard.jsx";
+import { Tags } from "./Tags.jsx";
 
 const KIND_CAMERA = 1;
 const KIND_DEPTH = 2;
@@ -9,8 +10,7 @@ export function useFeeds() {
   const camera = useRef(null);
   const depth = useRef(null);
   const newest = useRef({ [KIND_CAMERA]: -1n, [KIND_DEPTH]: -1n });
-  const [cameraRatio, setCameraRatio] = useState(null);
-  const [depthRatio, setDepthRatio] = useState(null);
+  const [ratio, setRatio] = useState(null);
 
   const onPreview = useCallback((kind, frameId, jpeg) => {
     const image =
@@ -28,38 +28,29 @@ export function useFeeds() {
     if (previous.startsWith("blob:")) URL.revokeObjectURL(previous);
   }, []);
 
-  const onLoad = useCallback((kind, event) => {
-    const ratio = event.target.naturalWidth / event.target.naturalHeight;
-    (kind === KIND_CAMERA ? setCameraRatio : setDepthRatio)(ratio);
+  // Both previews come from the same frame, so one ratio sizes both pictures.
+  const onCameraLoad = useCallback((event) => {
+    setRatio(event.target.naturalWidth / event.target.naturalHeight);
   }, []);
 
-  return {
-    camera,
-    depth,
-    cameraRatio,
-    depthRatio,
-    onPreview,
-    onLoad,
-  };
+  return { camera, depth, ratio, onPreview, onCameraLoad };
 }
 
-export function Feeds({ feeds, hazard, link }) {
+export function Feeds({ feeds, hazard, tags, link }) {
   return (
-    <section className="feeds">
+    <section
+      className="feeds"
+      style={feeds.ratio ? { "--ratio": feeds.ratio } : undefined}
+    >
       <figure>
-        <div
-          className="picture"
-          style={feeds.cameraRatio && { "--ratio": feeds.cameraRatio }}
-        >
-          <div className="frame">
-            <img
-              ref={feeds.camera}
-              alt="camera"
-              decoding="async"
-              onLoad={(event) => feeds.onLoad(KIND_CAMERA, event)}
-            />
-            <Hazard hazard={hazard} />
-          </div>
+        <div className="picture">
+          <img
+            ref={feeds.camera}
+            alt="camera"
+            decoding="async"
+            onLoad={feeds.onCameraLoad}
+          />
+          <Hazard hazard={hazard} />
         </div>
         <figcaption>
           <span>Camera</span>
@@ -69,18 +60,9 @@ export function Feeds({ feeds, hazard, link }) {
         </figcaption>
       </figure>
       <figure>
-        <div
-          className="picture"
-          style={feeds.depthRatio && { "--ratio": feeds.depthRatio }}
-        >
-          <div className="frame">
-            <img
-              ref={feeds.depth}
-              alt="depth"
-              decoding="async"
-              onLoad={(event) => feeds.onLoad(KIND_DEPTH, event)}
-            />
-          </div>
+        <div className="picture">
+          <img ref={feeds.depth} alt="depth" decoding="async" />
+          <Tags tags={tags} />
         </div>
         <figcaption>Depth</figcaption>
       </figure>

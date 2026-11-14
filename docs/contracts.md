@@ -37,7 +37,6 @@ class Frame:
     height: int
     pixels: bytes
 
-
 @dataclass(frozen=True, slots=True)
 class SceneGeometry:
     frame_id: int
@@ -48,14 +47,12 @@ class SceneGeometry:
     valid: tuple[bool, ...]
     horizontal_fov_deg: float
 
-
 @dataclass(frozen=True, slots=True)
 class Perception:
     geometry: SceneGeometry
     t_ready_ns: int
     camera_jpeg: bytes | None
     depth_jpeg: bytes | None
-
 
 @dataclass(frozen=True, slots=True)
 class HazardAlert:
@@ -65,13 +62,11 @@ class HazardAlert:
     frame_id: int
     t_capture_ns: int
 
-
 @dataclass(frozen=True, slots=True)
 class GuidanceRequest:
     geometry: SceneGeometry
     camera_jpeg: bytes
     recently_spoken: tuple[str, ...]
-
 
 @dataclass(frozen=True, slots=True)
 class GuidanceInstruction:
@@ -79,7 +74,7 @@ class GuidanceInstruction:
     text: str
     frame_id: int
     t_capture_ns: int
-
+    tags: tuple[str, ...] = ()
 
 @dataclass(frozen=True, slots=True)
 class Utterance:
@@ -89,7 +84,6 @@ class Utterance:
     frame_id: int
     t_capture_ns: int
     deadline_ns: int
-
 
 @dataclass(frozen=True, slots=True)
 class PcmChunk:
@@ -109,6 +103,7 @@ class PcmChunk:
 | | `camera_jpeg`, `depth_jpeg` | Previews; `None` on frames where they were skipped |
 | `GuidanceRequest` | `recently_spoken` | Last few spoken texts, newest last, so the reasoner does not repeat itself |
 | `GuidanceInstruction` | `phrase` | Set when the instruction is exactly a catalogue phrase; `text` is then the catalogue text |
+| | `tags` | Up to six lowercase labels of what the camera shows. A tag containing `crossing`, `crosswalk` or `zebra` means the way ahead crosses a road: `GuidanceLoop` then says `ROAD_CROSSING` and mutes "go straight" for 12 s. `text` may be empty when only tags came back |
 | `Utterance` | `deadline_ns` | Set by the producer according to invariant 6 |
 | `PcmChunk` | `samples` | Invariant 5; even number of bytes |
 
@@ -147,6 +142,7 @@ is pre-rendered into the phrase cache at startup.
 | `PATH_CLEAR` | "Path is clear." | guidance |
 | `SLOW_DOWN` | "Slow down." | guidance |
 | `DOOR_AHEAD` | "Door ahead." | guidance |
+| `ROAD_CROSSING` | "Road crossing ahead. Stop." | guidance, from a camera tag |
 
 ## 4. Ports
 
@@ -238,6 +234,7 @@ WebSocket, JSON events are text messages and previews are binary messages.
 | `geometry` | `frame_id`, `distances_m`, `valid`, `age_ms` | `PerceptionLoop` |
 | `hazard` | `level`, `bearing`, `distance_m`, `frame_id` | `HazardMonitor` |
 | `guidance_text` | `request_id`, `delta`, `final` | `GuidanceLoop` |
+| `tags` | `frame_id`, `tags` | `GuidanceLoop` |
 | `utterance` | `text`, `priority`, `outcome`, `age_ms` | `SpeechArbiter` |
 | `timing` | stage name → p50, p95, p99 in ms | every service |
 | `preview` | `kind` (`camera` or `depth`), `frame_id`, `jpeg` | `PerceptionLoop` |
@@ -251,8 +248,8 @@ rest a JPEG. Every other event is a JSON text message with a `type` field;
 `inf` distances are sent as `null`.
 
 In code each event type is a frozen dataclass in `domain/events.py`
-(`GeometryEvent`, `HazardEvent`, `GuidanceTextEvent`, `UtteranceEvent`,
-`TimingEvent`, `PreviewEvent`) with a class-level `type` tag, and `Event` is
+(`GeometryEvent`, `HazardEvent`, `GuidanceTextEvent`, `TagsEvent`,
+`UtteranceEvent`, `TimingEvent`, `PreviewEvent`) with a class-level `type` tag, and `Event` is
 their union. `TimingEvent.stages` is a tuple of `StageTiming(name, p50_ms,
 p95_ms, p99_ms)`; `outcome` is the `Outcome` enum and `kind` the
 `PreviewKind` enum.

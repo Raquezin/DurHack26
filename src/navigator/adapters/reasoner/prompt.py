@@ -3,6 +3,7 @@ import re
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.guidance import GuidanceRequest
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
+from navigator.domain.tags import ROAD_CROSSING, clean_tags
 
 GUIDANCE_PHRASES = (
     PhraseId.GO_STRAIGHT,
@@ -13,6 +14,7 @@ GUIDANCE_PHRASES = (
     PhraseId.PATH_CLEAR,
     PhraseId.SLOW_DOWN,
     PhraseId.DOOR_AHEAD,
+    PhraseId.ROAD_CROSSING,
 )
 
 SYSTEM_PROMPT = "\n".join(
@@ -28,6 +30,15 @@ SYSTEM_PROMPT = "\n".join(
         "When one of these phrase names fits, answer with the name alone:",
         *(f"{p.name} = {PHRASE_TEXT[p]}" for p in GUIDANCE_PHRASES),
         "Do not repeat a recent instruction unless the scene has changed.",
+        "Your answer has two lines. The first is TAGS: then two to six short "
+        "lowercase labels, comma separated, of what the camera sees that "
+        "matters to a walker, for example pavement, person, car, stairs, "
+        "door, bench. The second line is the instruction.",
+        f"Use exactly the label '{ROAD_CROSSING}' whenever the way ahead "
+        "crosses a road, crosswalk, zebra crossing, tram line or any lane "
+        "where vehicles may pass, even when it looks empty. The depth data "
+        "cannot see this danger, so then the instruction is ROAD_CROSSING "
+        "and never GO_STRAIGHT or PATH_CLEAR.",
     ]
 )
 
@@ -36,6 +47,7 @@ _COLS = "far left, left, ahead, right, far right"
 _TERMINATOR = re.compile(r"[.!?](?=\s)|(?<!\d)[.!?]$")
 _IDENTIFIER = re.compile(r"[A-Z]+(?:_[A-Z]+)+")
 _BY_TEXT = {text.casefold(): p for p, text in PHRASE_TEXT.items()}
+_TAGS_LINE = re.compile(r"\s*tags\s*:\s*([^\n]*)(\n|$)", re.IGNORECASE)
 
 
 def _cell(distance_m: float, valid: bool) -> str:
@@ -70,6 +82,18 @@ def user_text(request: GuidanceRequest) -> str:
             f"Recently said: {recent}",
         ]
     )
+
+
+def split_tags(
+    buffer: str, final: bool = False
+) -> tuple[tuple[str, ...], str] | None:
+    """Tags and the rest of the answer; None while the tags line is unfinished."""
+    match = _TAGS_LINE.match(buffer)
+    if match is None:
+        return (), buffer
+    if not match.group(2) and not final:
+        return None
+    return clean_tags(match.group(1).split(",")), buffer[match.end() :]
 
 
 def first_sentence(buffer: str) -> str | None:

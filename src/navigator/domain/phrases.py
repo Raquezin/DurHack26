@@ -14,6 +14,7 @@ class PhraseId(Enum):
     PATH_CLEAR = "path_clear"
     SLOW_DOWN = "slow_down"
     DOOR_AHEAD = "door_ahead"
+    ROAD_CROSSING = "road_crossing"
 
 
 PHRASE_TEXT = {
@@ -29,4 +30,5 @@ PHRASE_TEXT = {
     PhraseId.PATH_CLEAR: "Path is clear.",
     PhraseId.SLOW_DOWN: "Slow down.",
     PhraseId.DOOR_AHEAD: "Door ahead.",
+    PhraseId.ROAD_CROSSING: "Road crossing ahead. Stop.",
 }

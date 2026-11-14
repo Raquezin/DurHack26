@@ -106,7 +106,9 @@ Deliberately minimal — the *user* never sees it; it exists for the demo,
 debugging, and judges:
 
 - **Square 1:** raw real-time camera feed.
-- **Square 2:** live depth map visualization.
+- **Square 2:** live depth map visualization, with chips for what the camera
+  sees (from Gemini). A road crossing is red: depth cannot see a road, so
+  that tag is what stops "keep going straight".
 - **Chat/panel:** streaming reasoning output / instruction log (what the VLM
   "thinks", what was spoken, what was dropped and why).
 - **Latency strip:** per-stage p50 / p95 / p99.

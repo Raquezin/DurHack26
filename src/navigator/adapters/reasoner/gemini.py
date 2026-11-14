@@ -8,6 +8,7 @@ from navigator.adapters.reasoner.prompt import (
     SYSTEM_PROMPT,
     first_sentence,
     parse_answer,
+    split_tags,
     user_text,
 )
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
@@ -46,7 +47,7 @@ class GeminiSceneReasoner:
         await self._client.aio.aclose()
         self._client = None
 
-    async def _answer(self, request: GuidanceRequest) -> str:
+    async def _answer(self, request: GuidanceRequest) -> tuple[tuple[str, ...], str]:
         stream = await self._client.aio.models.generate_content_stream(
             model=self._model, contents=contents(request), config=self._config
         )
@@ -54,25 +55,30 @@ class GeminiSceneReasoner:
         async with aclosing(stream):
             async for chunk in stream:
                 buffer += chunk.text or ""
-                sentence = first_sentence(buffer)
+                split = split_tags(buffer)
+                if split is None:
+                    continue
+                tags, rest = split
+                sentence = first_sentence(rest)
                 if sentence:
-                    return sentence
-        return buffer
+                    return tags, sentence
+        return split_tags(buffer, final=True)
 
     async def advise(
         self, request: GuidanceRequest
     ) -> AsyncIterator[GuidanceInstruction]:
         try:
-            answer = await self._answer(request)
+            tags, answer = await self._answer(request)
         except Exception:
             return
         parsed = parse_answer(answer)
-        if parsed is None:
+        if parsed is None and not tags:
             return
-        phrase, text = parsed
+        phrase, text = parsed or (None, "")
         yield GuidanceInstruction(
             phrase=phrase,
             text=text,
             frame_id=request.geometry.frame_id,
             t_capture_ns=request.geometry.t_capture_ns,
+            tags=tags,
         )

@@ -150,3 +150,29 @@ async def test_consumer_cancel_closes_provider_stream(install):
                 async for _ in r.advise(_request()):
                     pass
     assert models.closed
+
+
+async def test_tags_line_then_instruction(install):
+    models = FakeModels(["TAGS: pavement, ", "road crossing\nROAD", "_CROSSING"])
+    install(models)
+    [instruction] = await _advise()
+    assert instruction.tags == ("pavement", "road crossing")
+    assert instruction.phrase is PhraseId.ROAD_CROSSING
+
+
+async def test_tags_do_not_delay_the_first_sentence(install):
+    models = FakeModels(["TAGS: car\nBear", " right.", " More."])
+    install(models)
+    [instruction] = await _advise()
+    assert instruction.tags == ("car",)
+    assert instruction.text == "Bear right."
+    assert models.consumed == 2
+
+
+async def test_tags_without_instruction_are_still_yielded(install):
+    models = FakeModels(["TAGS: stairs, door"])
+    install(models)
+    [instruction] = await _advise()
+    assert instruction.tags == ("stairs", "door")
+    assert instruction.phrase is None
+    assert instruction.text == ""

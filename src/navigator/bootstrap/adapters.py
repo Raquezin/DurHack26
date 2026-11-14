@@ -4,6 +4,7 @@ from collections.abc import Callable
 from navigator.bootstrap.config import Settings
 from navigator.bootstrap.secrets import Secrets
 from navigator.domain.phrases import PhraseId
+from navigator.domain.tags import clean_tags
 from navigator.ports.clock import Clock
 
 Builder = Callable[[Settings, Clock, Secrets], object]
@@ -104,6 +105,7 @@ def _reasoner_scripted(settings, clock, secrets, resources):
         text=settings.reasoner_text,
         phrase=phrase,
         delay_s=settings.reasoner_delay_s,
+        tags=clean_tags(settings.reasoner_tags.split(",")),
     )
 
 

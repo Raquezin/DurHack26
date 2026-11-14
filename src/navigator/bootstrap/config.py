@@ -24,8 +24,9 @@ class Settings:
     reasoner_text: str = "Keep going straight."
     reasoner_phrase: str | None = "GO_STRAIGHT"
     reasoner_delay_s: float = 0.2
+    reasoner_tags: str = "pavement, wall"
     gemini_model: str = "gemini-3.5-flash-lite"
-    gemini_max_output_tokens: int = 40
+    gemini_max_output_tokens: int = 64
     elevenlabs_model: str = "eleven_flash_v2_5"
     tone_delay_s: float = 0.05
     tone_seconds_per_char: float = 0.03

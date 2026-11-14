@@ -8,6 +8,7 @@ from navigator.adapters.reasoner.prompt import (
     distance_grid,
     first_sentence,
     parse_answer,
+    split_tags,
     user_text,
 )
 from navigator.domain.geometry import SceneGeometry
@@ -103,3 +104,31 @@ def test_parse_unknown_identifier_is_not_spoken():
 def test_parse_empty():
     assert parse_answer("") is None
     assert parse_answer("  \n") is None
+
+
+def test_split_tags_waits_for_the_end_of_the_line():
+    assert split_tags("TAGS: car, road cross") is None
+    assert split_tags("TAGS:") is None
+    assert split_tags("TA") == ((), "TA")
+
+
+def test_split_tags_then_instruction():
+    assert split_tags("TAGS: Pavement, Car.\nTurn left.") == (
+        ("pavement", "car"),
+        "Turn left.",
+    )
+    assert split_tags("tags : door\nDOOR_AHEAD") == (("door",), "DOOR_AHEAD")
+
+
+def test_split_tags_without_a_tags_line_keeps_the_answer():
+    assert split_tags("Turn left.") == ((), "Turn left.")
+
+
+def test_split_tags_final_accepts_an_unfinished_line():
+    assert split_tags("TAGS: stairs", final=True) == (("stairs",), "")
+
+
+def test_prompt_asks_for_tags_and_names_the_road_crossing_label():
+    assert "TAGS:" in SYSTEM_PROMPT
+    assert "'road crossing'" in SYSTEM_PROMPT
+    assert "ROAD_CROSSING" in SYSTEM_PROMPT
