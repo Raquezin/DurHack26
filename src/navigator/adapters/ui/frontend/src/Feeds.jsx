@@ -10,9 +10,11 @@ export function useFeeds() {
   const camera = useRef(null);
   const depth = useRef(null);
   const newest = useRef({ [KIND_CAMERA]: -1n, [KIND_DEPTH]: -1n });
+  const painting = useRef({ [KIND_CAMERA]: false, [KIND_DEPTH]: false });
+  const pending = useRef({ [KIND_CAMERA]: null, [KIND_DEPTH]: null });
   const [ratio, setRatio] = useState(null);
 
-  const onPreview = useCallback((kind, frameId, jpeg) => {
+  const show = useCallback((kind, frameId, jpeg) => {
     const image =
       kind === KIND_CAMERA
         ? camera.current
@@ -27,6 +29,27 @@ export function useFeeds() {
     );
     if (previous.startsWith("blob:")) URL.revokeObjectURL(previous);
   }, []);
+
+  const onPreview = useCallback(
+    (kind, frameId, jpeg) => {
+      if (kind !== KIND_CAMERA && kind !== KIND_DEPTH) return;
+      if (painting.current[kind]) {
+        const held = pending.current[kind];
+        if (!held || frameId >= held.frameId)
+          pending.current[kind] = { frameId, jpeg };
+        return;
+      }
+      painting.current[kind] = true;
+      show(kind, frameId, jpeg);
+      requestAnimationFrame(() => {
+        painting.current[kind] = false;
+        const next = pending.current[kind];
+        pending.current[kind] = null;
+        if (next) onPreview(kind, next.frameId, next.jpeg);
+      });
+    },
+    [show],
+  );
 
   // Both previews come from the same frame, so one ratio sizes both pictures.
   const onCameraLoad = useCallback((event) => {

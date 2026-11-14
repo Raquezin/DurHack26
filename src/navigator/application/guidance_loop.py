@@ -86,8 +86,8 @@ class GuidanceLoop:
 
     def _steer(self, geometry: SceneGeometry) -> None:
         wanted = steer(geometry, self._steering)
-        if wanted in _OPEN_PATH and self._road_ahead():
-            # Depth sees a road as open floor; only the camera knows better.
+        road_hides_open_path = wanted in _OPEN_PATH and self._road_ahead()
+        if road_hides_open_path:
             wanted = None
         self._steering_state, phrase = advise(
             self._steering_state, wanted, self._clock.now_ns(), self._steering

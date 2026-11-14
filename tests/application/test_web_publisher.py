@@ -46,28 +46,36 @@ async def test_ws_receives_json_and_binary_preview():
                 ).start()
                 publisher.publish(
                     PreviewEvent(
-                        kind=PreviewKind.DEPTH, frame_id=3, jpeg=b"\xff\xd8jpeg"
+                        kind=PreviewKind.CAMERA, frame_id=3, jpeg=b"\xff\xd8jpeg"
+                    )
+                )
+                publisher.publish(
+                    PreviewEvent(
+                        kind=PreviewKind.DEPTH, frame_id=3, jpeg=b"\xff\xd8depth"
                     )
                 )
                 texts = []
-                binary = None
+                binaries = []
                 for _ in range(20):
                     message = await asyncio.wait_for(ws.receive(), 5)
                     if message.type == WSMsgType.TEXT:
                         texts.append(json.loads(message.data))
                     elif message.type == WSMsgType.BINARY:
-                        binary = message.data
-                    if texts and binary:
+                        binaries.append(message.data)
+                    if texts and len(binaries) == 2:
                         break
                 assert any(t["type"] == "geometry" for t in texts)
                 geometry = next(
                     t for t in texts if t["type"] == "geometry"
                 )
                 assert geometry["distances_m"] == [None, 1.5]
-                assert binary is not None
-                assert binary[0] == 2
-                assert int.from_bytes(binary[1:9], "big") == 3
-                assert binary[9:] == b"\xff\xd8jpeg"
+                assert len(binaries) == 2
+                assert binaries[0][0] == 1
+                assert binaries[0][9:] == b"\xff\xd8jpeg"
+                assert binaries[1][0] == 2
+                assert binaries[1][9:] == b"\xff\xd8depth"
+                for binary in binaries:
+                    assert int.from_bytes(binary[1:9], "big") == 3
     finally:
         await publisher.__aexit__(None, None, None)
 

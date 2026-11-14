@@ -87,7 +87,6 @@ def user_text(request: GuidanceRequest) -> str:
 def split_tags(
     buffer: str, final: bool = False
 ) -> tuple[tuple[str, ...], str] | None:
-    """Tags and the rest of the answer; None while the tags line is unfinished."""
     match = _TAGS_LINE.match(buffer)
     if match is None:
         return (), buffer
