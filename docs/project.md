@@ -53,7 +53,8 @@ Camera (real-time video)
   per-region distances (left / center / right or a coarse grid), and possibly
   floor/obstacle segmentation. This gives the VLM quantitative grounding
   ("wall 1.5 m ahead, clear path to the right") rather than leaving it to
-  interpret a depth image alone.
+  interpret a depth image alone. It also feeds the fast local alert path
+  described under Latency constraints.
 - **VLM reasoning** — Google API consumes depth frames, the computed distance
   data, and possibly RGB context, and produces short, actionable navigation
   guidance. Reasoning must be throttled/prioritized so instructions stay
@@ -61,9 +62,27 @@ Camera (real-time video)
 - **TTS** — ElevenLabs for natural, low-latency speech. Short imperative
   phrases ("step left", "door ahead", "stop — obstacle 1 meter") streamed with
   minimal delay.
-- **Latency budget** — the whole loop (frame → depth → reasoning → audio) is
-  performance-critical. Optimization target: instructions that arrive while
-  they're still true. Technical details TBD, but design every stage for speed.
+
+## Latency constraints
+
+End-to-end latency is the binding constraint of the whole system — an
+instruction that arrives late describes a scene that no longer exists.
+
+- **Hazard alerts (hard bound): ≤ ~300 ms** frame-to-feedback. Based on human
+  response-time research for wearable obstacle avoidance (~320 ms) — any
+  slower and the user has no time left to react.
+- **Spoken guidance (target): < 1 s**, ideally ~600 ms. Past ~1.5 s of delay,
+  instructions describe a scene 1.5–2 m behind the user at walking speed —
+  actively misleading, worse than silence.
+- **Consequence — two feedback tiers:** a cloud VLM call cannot meet the
+  hazard bound (network round-trips alone approach it), so the system needs:
+  1. a **fast local path** — depth → distances → rule-based alert for imminent
+     hazards, no cloud involvement;
+  2. a **guidance path** — VLM reasoning → TTS for directional guidance and
+     scene description, running at a throttled cadence (~1–2 Hz or
+     event-triggered), never per-frame.
+- **Staleness rule:** if a guidance response exceeds its deadline, discard it
+  rather than speak outdated advice.
 
 ## UI
 
