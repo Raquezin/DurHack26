@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Feeds, usePreviews } from "./Feeds.jsx";
 import { Hazard } from "./Hazard.jsx";
 import { Voice } from "./Voice.jsx";
+import { postureForPhrase } from "./motion.js";
 import { connect } from "./socket.js";
 import { speechDurationMs } from "./speech.js";
 
@@ -13,6 +14,7 @@ export function App() {
   const previews = usePreviews();
   const [text, setText] = useState(WAITING_TEXT);
   const [speaking, setSpeaking] = useState(false);
+  const [posture, setPosture] = useState("look");
   const [hazard, setHazard] = useState(null);
   const [link, setLink] = useState("offline");
   const speechTimer = useRef(null);
@@ -27,6 +29,7 @@ export function App() {
     (spoken) => {
       clearTimeout(speechTimer.current);
       setText(spoken);
+      setPosture(postureForPhrase(spoken));
       setSpeaking(true);
       speechTimer.current = setTimeout(stopSpeaking, speechDurationMs(spoken));
     },
@@ -59,7 +62,7 @@ export function App() {
   return (
     <main>
       <Feeds camera={previews.camera} depth={previews.depth} />
-      <Voice speaking={speaking} text={text} />
+      <Voice speaking={speaking} text={text} posture={posture} hazardActive={hazard !== null} />
       <Hazard hazard={hazard} />
     </main>
   );
