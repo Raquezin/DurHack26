@@ -1,7 +1,7 @@
 @font-face {
-  font-family: "Geist Serif";
-  src: url("/static/fonts/GeistSerifVF.woff2") format("woff2");
-  font-weight: 100 900;
+  font-family: "Geist";
+  src: url("/static/fonts/Geist-Regular.woff2") format("woff2");
+  font-weight: 400;
   font-display: swap;
 }
 
@@ -23,13 +23,13 @@ html, body, #root {
   height: 100%;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Geist Serif", Georgia, serif;
+  font-family: "Geist", system-ui, sans-serif;
 }
 
 main {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   gap: 0.75rem;
   padding: 0.75rem;
 }
@@ -43,10 +43,6 @@ main {
 figure {
   margin: 0;
   min-width: 0;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  overflow: hidden;
 }
 
 img {
@@ -55,45 +51,34 @@ img {
   aspect-ratio: 4 / 3;
   object-fit: contain;
   background: #000;
+  border-radius: 12px;
 }
 
 img:not([src]) { visibility: hidden; }
 
 figcaption {
-  padding: 0.5rem 0.9rem;
+  padding: 0.5rem 0.25rem;
   font-size: 0.85rem;
   font-style: italic;
-  color: var(--muted);
+  color: var(--ink);
 }
 
 .voice {
   min-height: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1.75rem;
-  padding: 0.5rem 1.75rem;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  justify-content: center;
+  gap: 1rem;
 }
 
 .voice canvas { flex: none; }
 
-.said { min-width: 0; }
-
-.state {
-  margin: 0 0 0.4rem;
-  font-size: 0.95rem;
-  font-style: italic;
-  color: var(--muted);
-  transition: color 0.4s;
-}
-
-.voice[data-state="speaking"] .state { color: var(--ink); }
-
 .text {
   margin: 0;
-  font-size: clamp(2rem, 4.4vw, 3.6rem);
+  max-width: 60ch;
+  text-align: center;
+  font-size: clamp(1.2rem, 2.2vw, 1.8rem);
   font-weight: 400;
   line-height: 1.12;
   letter-spacing: -0.015em;
@@ -102,16 +87,3 @@ figcaption {
 }
 
 .voice[data-state="speaking"] .text { opacity: 1; }
-
-.hazard {
-  margin: 0;
-  min-height: 1.5em;
-  padding: 0 0.25rem;
-  font-size: 1.15rem;
-  font-style: italic;
-}
-
-.hazard::first-letter { text-transform: uppercase; }
-
-.hazard[data-level="stop"] { color: var(--stop); }
-.hazard[data-level="caution"] { color: var(--caution); }

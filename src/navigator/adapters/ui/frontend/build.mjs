@@ -6,8 +6,8 @@ const here = (path) => fileURLToPath(new URL(path, import.meta.url));
 
 mkdirSync(here("../static/fonts/"), { recursive: true });
 copyFileSync(
-  here("node_modules/geist/dist/fonts/geist-serif/GeistSerifVF.woff2"),
-  here("../static/fonts/GeistSerifVF.woff2"),
+  here("node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2"),
+  here("../static/fonts/Geist-Regular.woff2"),
 );
 
 await build({
