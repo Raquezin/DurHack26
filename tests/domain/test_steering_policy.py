@@ -5,6 +5,7 @@ from navigator.domain.policies.steering import (
     SteeringState,
     advise,
     path_clearance,
+    permits,
     steer,
 )
 
@@ -48,6 +49,49 @@ def test_only_far_side_open_turns():
 
 def test_nothing_open_says_nothing():
     assert steer(scene([2.5] * 5), S) is None
+
+
+def test_both_sides_open_leaves_the_choice_to_the_cloud():
+    assert steer(scene([6.0, 2.5, 2.5, 2.5, 6.0]), S) is None
+
+
+def test_cloud_direction_into_open_space_is_permitted():
+    g = scene([6.0, 2.5, 2.5, 2.5, 6.0])
+    assert permits(g, PhraseId.TURN_LEFT, S)
+    assert permits(g, PhraseId.TURN_RIGHT, S)
+
+
+def test_cloud_direction_into_a_wall_is_refused():
+    g = scene([1.5, 1.5, 1.5, 6.0, 1.5])
+    assert steer(g, S) is PhraseId.VEER_RIGHT
+    assert not permits(g, PhraseId.TURN_LEFT, S)
+    assert not permits(g, PhraseId.VEER_LEFT, S)
+    assert permits(g, PhraseId.VEER_RIGHT, S)
+
+
+def test_veer_and_turn_both_mean_that_side():
+    g = scene([1.5, 1.5, 1.5, 1.5, 6.0])
+    assert permits(g, PhraseId.VEER_RIGHT, S)
+    assert permits(g, PhraseId.TURN_RIGHT, S)
+    assert not permits(g, PhraseId.TURN_LEFT, S)
+
+
+def test_a_side_without_a_hazard_counts_as_open_in_tight_spaces():
+    g = scene([2.2, 1.5, 1.0, 1.5, 1.5])
+    assert steer(g, S) is None
+    assert permits(g, PhraseId.TURN_LEFT, S)
+    assert not permits(g, PhraseId.TURN_RIGHT, S)
+
+
+def test_straight_refused_when_the_path_is_blocked():
+    assert not permits(scene([8.0, 8.0, 1.5, 8.0, 8.0]), PhraseId.GO_STRAIGHT, S)
+    assert permits(scene([8.0] * 5), PhraseId.GO_STRAIGHT, S)
+
+
+def test_non_directional_answers_always_permitted():
+    g = scene([2.5] * 5)
+    assert permits(g, PhraseId.DOOR_AHEAD, S)
+    assert permits(g, None, S)
 
 
 def test_neighbour_obstacle_inside_the_path_blocks_it():

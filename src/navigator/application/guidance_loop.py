@@ -11,6 +11,7 @@ from navigator.domain.policies.steering import (
     SteeringSettings,
     SteeringState,
     advise,
+    permits,
     steer,
 )
 from navigator.domain.policies.trigger import (
@@ -118,7 +119,10 @@ class GuidanceLoop:
         self, asked: SceneGeometry, instruction: GuidanceInstruction, deadline_ns: int
     ) -> None:
         latest = self._board.latest()
-        if latest is not None and not still_valid(asked, latest.geometry, self._settings):
+        if latest is not None and not (
+            still_valid(asked, latest.geometry, self._settings)
+            and permits(latest.geometry, instruction.phrase, self._steering)
+        ):
             return
         self._events.publish(
             GuidanceTextEvent(request_id=asked.frame_id, delta=instruction.text, final=True)

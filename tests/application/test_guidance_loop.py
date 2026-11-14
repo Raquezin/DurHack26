@@ -271,3 +271,36 @@ async def test_local_steering_speaks_while_the_cloud_is_silent():
     guidance.stop()
     await asyncio.wait_for(task, 1.0)
     assert [u.phrase for u in arbiter.utterances] == [PhraseId.VEER_RIGHT]
+
+
+class PhraseReasoner:
+    def __init__(self, phrase, delay_s=0.05):
+        self.phrase = phrase
+        self.delay_s = delay_s
+        self.closed = 0
+
+    async def advise(self, request):
+        try:
+            await asyncio.sleep(self.delay_s)
+            yield GuidanceInstruction(
+                phrase=self.phrase,
+                text=self.phrase.name,
+                frame_id=request.geometry.frame_id,
+                t_capture_ns=request.geometry.t_capture_ns,
+            )
+        finally:
+            self.closed += 1
+
+
+async def test_cloud_direction_into_a_wall_is_not_spoken():
+    clock = ManualClock()
+    reasoner = PhraseReasoner(PhraseId.TURN_LEFT)
+    arbiter = CollectingArbiter()
+    guidance = _loop(reasoner, clock, arbiter, CollectingEventPublisher(), TriggerSettings())
+    task = asyncio.create_task(guidance.run())
+    right_open = (8.0,) * 5 + (1.5, 1.5, 1.5, 6.0, 1.5) * 2
+    guidance._board.put(_perception(1, t_capture_ns=clock.now_ns(), distances=right_open))
+    assert await _until(lambda: reasoner.closed == 1, 0.5)
+    guidance.stop()
+    await asyncio.wait_for(task, 1.0)
+    assert PhraseId.TURN_LEFT not in [u.phrase for u in arbiter.utterances]

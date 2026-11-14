@@ -6,11 +6,13 @@ from navigator.domain.phrases import PhraseId
 
 _VEER = {-1: PhraseId.VEER_LEFT, 1: PhraseId.VEER_RIGHT}
 _TURN = {-1: PhraseId.TURN_LEFT, 1: PhraseId.TURN_RIGHT}
+_DIRECTIONS = {phrase: d for table in (_VEER, _TURN) for d, phrase in table.items()}
 
 
 @dataclass(frozen=True, slots=True)
 class SteeringSettings:
     look_m: float = 3.0
+    open_m: float = 2.0
     half_width_m: float = 0.4
     confirm_frames: int = 5
     min_interval_s: float = 3.0
@@ -38,16 +40,38 @@ def path_clearance(geometry: SceneGeometry, settings: SteeringSettings) -> float
     return min(blocking, default=settings.max_m)
 
 
+def _open_columns(
+    geometry: SceneGeometry, settings: SteeringSettings, at_least_m: float
+) -> list[int]:
+    clearance = _clearance(geometry, settings)
+    return [col for col, d in enumerate(clearance) if d >= at_least_m]
+
+
 def steer(geometry: SceneGeometry, settings: SteeringSettings) -> PhraseId | None:
     if path_clearance(geometry, settings) >= settings.look_m:
         return PhraseId.GO_STRAIGHT
-    clearance = _clearance(geometry, settings)
-    centre = (geometry.cols - 1) / 2
-    best = max(range(geometry.cols), key=lambda c: (clearance[c], -abs(c - centre)))
-    direction = side(best, geometry.cols)
-    if clearance[best] < settings.look_m or direction == 0:
+    open_columns = _open_columns(geometry, settings, settings.look_m)
+    sides = {side(col, geometry.cols) for col in open_columns} - {0}
+    if len(sides) != 1:
         return None
-    return (_VEER if abs(best - centre) <= 1 else _TURN)[direction]
+    direction = sides.pop()
+    centre = (geometry.cols - 1) / 2
+    nearest = min(abs(c - centre) for c in open_columns if side(c, geometry.cols) == direction)
+    return (_VEER if nearest <= 1 else _TURN)[direction]
+
+
+def permits(
+    geometry: SceneGeometry, phrase: PhraseId | None, settings: SteeringSettings
+) -> bool:
+    if phrase in (PhraseId.GO_STRAIGHT, PhraseId.PATH_CLEAR):
+        return path_clearance(geometry, settings) >= settings.open_m
+    direction = _DIRECTIONS.get(phrase)
+    if direction is None:
+        return True
+    return any(
+        side(col, geometry.cols) == direction
+        for col in _open_columns(geometry, settings, settings.open_m)
+    )
 
 
 def advise(

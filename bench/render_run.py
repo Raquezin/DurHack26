@@ -153,7 +153,7 @@ def render(args) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--session", type=Path, default=ROOT / "fixtures" / "sessions" / "default")
-    parser.add_argument("--loops", type=int, default=2)
+    parser.add_argument("--loops", type=int, default=1)
     parser.add_argument("--seconds", type=float, default=None)
     parser.add_argument("--out", type=Path, default=ROOT / "out" / "run.mp4")
     parser.add_argument("--set", dest="overrides", action="append", default=[])
