@@ -45,8 +45,9 @@ class CollectingArbiter:
 
 
 class TimedReasoner:
-    def __init__(self, delays_s):
+    def __init__(self, delays_s, phrase=None):
         self.delays_s = delays_s
+        self.phrase = phrase
         self.requests = []
         self.in_flight = 0
         self.max_in_flight = 0
@@ -60,7 +61,7 @@ class TimedReasoner:
             for i, delay_s in enumerate(self.delays_s):
                 await asyncio.sleep(delay_s)
                 yield GuidanceInstruction(
-                    phrase=None,
+                    phrase=self.phrase,
                     text=f"step {i}",
                     frame_id=request.geometry.frame_id,
                     t_capture_ns=request.geometry.t_capture_ns,
@@ -273,28 +274,9 @@ async def test_local_steering_speaks_while_the_cloud_is_silent():
     assert [u.phrase for u in arbiter.utterances] == [PhraseId.VEER_RIGHT]
 
 
-class PhraseReasoner:
-    def __init__(self, phrase, delay_s=0.05):
-        self.phrase = phrase
-        self.delay_s = delay_s
-        self.closed = 0
-
-    async def advise(self, request):
-        try:
-            await asyncio.sleep(self.delay_s)
-            yield GuidanceInstruction(
-                phrase=self.phrase,
-                text=self.phrase.name,
-                frame_id=request.geometry.frame_id,
-                t_capture_ns=request.geometry.t_capture_ns,
-            )
-        finally:
-            self.closed += 1
-
-
 async def test_cloud_direction_into_a_wall_is_not_spoken():
     clock = ManualClock()
-    reasoner = PhraseReasoner(PhraseId.TURN_LEFT)
+    reasoner = TimedReasoner([0.05], phrase=PhraseId.TURN_LEFT)
     arbiter = CollectingArbiter()
     guidance = _loop(reasoner, clock, arbiter, CollectingEventPublisher(), TriggerSettings())
     task = asyncio.create_task(guidance.run())
