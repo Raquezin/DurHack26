@@ -1,34 +1,40 @@
+@font-face {
+  font-family: "Geist Serif";
+  src: url("/static/fonts/GeistSerifVF.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
-  color-scheme: dark;
-  --bg: #0e0f12;
-  --panel: #17191e;
-  --ink: #f3f0e8;
-  --muted: #9b968c;
-  --line: #2a2e36;
-  --next: #e2b657;
-  --drop: #d08072;
-  --live: #8dca8a;
+  color-scheme: light;
+  --bg: #f5f3ee;
+  --panel: #fbfaf7;
+  --ink: #1c1b19;
+  --muted: #7d7970;
+  --line: #e2dfd7;
+  --stop: #c4402f;
+  --caution: #a9741a;
 }
 
 * { box-sizing: border-box; }
 
-html, body {
+html, body, #root {
   margin: 0;
   height: 100%;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Segoe UI", sans-serif;
+  font-family: "Geist Serif", Georgia, serif;
 }
 
 main {
   height: 100%;
   display: grid;
-  grid-template-rows: auto auto minmax(8rem, 1fr);
+  grid-template-rows: auto 1fr auto;
   gap: 0.75rem;
   padding: 0.75rem;
 }
 
-#previews {
+.feeds {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
@@ -37,8 +43,10 @@ main {
 figure {
   margin: 0;
   min-width: 0;
-  background: #000;
+  background: var(--panel);
   border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 img {
@@ -52,57 +60,58 @@ img {
 img:not([src]) { visibility: hidden; }
 
 figcaption {
-  padding: 0.4rem 0.7rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  font-style: italic;
   color: var(--muted);
 }
 
-.speech {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.3rem 1rem;
-  align-items: baseline;
-  padding: 0.85rem 1.1rem 1rem;
+.voice {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  padding: 0.5rem 1.75rem;
   background: var(--panel);
   border: 1px solid var(--line);
+  border-radius: 14px;
 }
 
-.label, #link {
+.voice canvas { flex: none; }
+
+.said { min-width: 0; }
+
+.state {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--muted);
+  transition: color 0.4s;
+}
+
+.voice[data-state="speaking"] .state { color: var(--ink); }
+
+.text {
   margin: 0;
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: clamp(2rem, 4.4vw, 3.6rem);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  opacity: 0.5;
+  transition: opacity 0.4s;
 }
 
-.label { color: var(--next); }
+.voice[data-state="speaking"] .text { opacity: 1; }
 
-#link { color: var(--muted); }
-
-body[data-link="live"] #link { color: var(--live); }
-
-.line {
+.hazard {
   margin: 0;
-  grid-column: 1 / -1;
-  font-size: clamp(1.7rem, 3.2vw, 2.8rem);
-  line-height: 1.2;
+  min-height: 1.5em;
+  padding: 0 0.25rem;
+  font-size: 1.15rem;
+  font-style: italic;
 }
 
-#log {
-  overflow: auto;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 0.85rem;
-}
+.hazard::first-letter { text-transform: uppercase; }
 
-.event {
-  padding: 0.32rem 0.75rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.event.hazard { color: #ff8d7a; }
-.event.utterance { color: var(--ink); }
-.event.guidance_text { color: #9ec0ff; }
-.event.geometry { color: #666; }
+.hazard[data-level="stop"] { color: var(--stop); }
+.hazard[data-level="caution"] { color: var(--caution); }
