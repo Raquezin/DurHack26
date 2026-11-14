@@ -6,3 +6,4 @@ __pycache__/
 .cache/
 *.egg-info/
 /out/
+node_modules/
