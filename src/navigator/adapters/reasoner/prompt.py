@@ -34,6 +34,7 @@ SYSTEM_PROMPT = "\n".join(
 _ROWS = ("head", "torso", "legs")
 _COLS = "far left, left, ahead, right, far right"
 _TERMINATOR = re.compile(r"[.!?](?=\s)|(?<!\d)[.!?]$")
+_IDENTIFIER = re.compile(r"[A-Z]+(?:_[A-Z]+)+")
 _BY_TEXT = {text.casefold(): p for p, text in PHRASE_TEXT.items()}
 
 
@@ -82,6 +83,8 @@ def parse_answer(answer: str) -> tuple[PhraseId | None, str] | None:
     if name in PhraseId.__members__:
         phrase = PhraseId[name]
         return phrase, PHRASE_TEXT[phrase]
+    if _IDENTIFIER.fullmatch(name):
+        return None
     if sentence.casefold() in _BY_TEXT:
         phrase = _BY_TEXT[sentence.casefold()]
         return phrase, PHRASE_TEXT[phrase]

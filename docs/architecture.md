@@ -65,8 +65,8 @@ and everyone else sees fifteen numbers and two JPEGs.
 | Service | Reads | Does | Writes |
 | --- | --- | --- | --- |
 | `PerceptionLoop` | `FrameSource` | Runs `ScenePerception` on the newest frame | `SceneBoard`, `EventPublisher` |
-| `HazardMonitor` | each new geometry | Applies `HazardPolicy`; emits a hazard utterance | `SpeechArbiter`, `EventPublisher` |
-| `GuidanceLoop` | `SceneBoard` | Applies `TriggerPolicy`; calls `SceneReasoner`; emits guidance utterances | `SpeechArbiter`, `EventPublisher` |
+| `HazardMonitor` | each new geometry | Applies `HazardPolicy` to obstacles inside the walking path; speaks when the alert rises, changes side or gets closer, confirmed over consecutive frames | `SpeechArbiter`, `EventPublisher` |
+| `GuidanceLoop` | `SceneBoard` | Applies `SteeringPolicy` every frame (local, no network); applies `TriggerPolicy` and calls `SceneReasoner` in the background; speaks a cloud answer only if the scene still matches | `SpeechArbiter`, `EventPublisher` |
 | `SpeechArbiter` | utterances | Applies `ArbitrationPolicy`: priority, pre-emption, staleness, repetition; resolves audio from phrase cache or `SpeechSynthesizer` | `AudioSink`, `EventPublisher` |
 
 `SceneBoard` is the one shared in-memory structure: a thread-safe holder of

@@ -14,6 +14,7 @@ from navigator.bootstrap import adapters
 from navigator.bootstrap.config import PRESETS, apply_overrides, resolve
 from navigator.bootstrap.secrets import Secrets
 from navigator.domain.policies.hazard import HazardThresholds
+from navigator.domain.policies.steering import SteeringSettings
 from navigator.domain.policies.trigger import TriggerSettings
 
 
@@ -105,7 +106,10 @@ async def _run(settings, duration_s) -> None:
             events=built["event_publisher"],
             clock=clock,
             thresholds=HazardThresholds(
-                stop_m=settings.stop_m, caution_m=settings.caution_m
+                stop_m=settings.stop_m,
+                caution_m=settings.caution_m,
+                half_width_m=settings.path_half_width_m,
+                confirm_frames=settings.hazard_confirm_frames,
             ),
             deadline_offset_ns=offset_ns,
         )
@@ -125,8 +129,13 @@ async def _run(settings, duration_s) -> None:
             events=built["event_publisher"],
             clock=clock,
             trigger_settings=TriggerSettings(
-                interval_s=settings.trigger_interval_s,
-                abandon_s=settings.trigger_abandon_s,
+                min_interval_s=settings.trigger_min_interval_s,
+                keepalive_s=settings.trigger_keepalive_s,
+                max_age_s=settings.guidance_max_age_s,
+            ),
+            steering_settings=SteeringSettings(
+                look_m=settings.steering_look_m,
+                half_width_m=settings.path_half_width_m,
             ),
             deadline_offset_ns=offset_ns,
         )

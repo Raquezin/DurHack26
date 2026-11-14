@@ -16,10 +16,12 @@ Layering and threads are described in [architecture.md](architecture.md).
    the newest.
 4. **Units.** Metres, degrees, nanoseconds. Left and right are the user's.
 5. **Audio.** PCM, signed 16-bit little-endian, mono, 24 000 Hz, everywhere.
-6. **Deadlines.** Hazard utterances: `t_capture_ns + 300 ms`. Guidance
-   utterances: `t_capture_ns + 1500 ms`. Both are reduced by the measured
-   capture and output offset, a configuration value. An utterance past its
-   deadline before its first sample plays is dropped.
+6. **Deadlines.** Hazard utterances: `t_capture_ns + 300 ms`. Local
+   guidance: `t_capture_ns + 1000 ms`. Cloud guidance: `t_capture_ns +
+   5000 ms`, and only while the scene still matches the frame it was asked
+   about. All are reduced by the measured capture and output offset, a
+   configuration value. An utterance past its deadline before its first
+   sample plays is dropped.
 7. **Immutability.** All contract types are frozen. Nothing is mutated after
    it is published.
 8. **No tensors.** Contract types hold only standard-library values.

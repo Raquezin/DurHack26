@@ -96,6 +96,10 @@ def test_parse_free_sentence():
     )
 
 
+def test_parse_unknown_identifier_is_not_spoken():
+    assert parse_answer("STOP_SLOW_DOWN") is None
+
+
 def test_parse_empty():
     assert parse_answer("") is None
     assert parse_answer("  \n") is None

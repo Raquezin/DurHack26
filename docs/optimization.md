@@ -204,7 +204,7 @@ not attention.
 | `auto_mode`, `flush`, raw PCM output | server-side buffering; decode | ElevenLabs |
 | Event-triggered requests with a minimum interval; one in flight | calls that would be discarded anyway | Gemini |
 | Change detection on zone distances | repeating advice for an unchanged scene | trigger |
-| Deadline carried with every request; abandon at 1.0 s without a token | speaking stale advice | arbiter |
+| Answer spoken only while the scene still matches; abandon at 5 s | speaking stale advice | guidance loop |
 | Priority inference tier | queueing on Google's side | Gemini, if G2 fails |
 
 ## 8. Audio output

@@ -38,8 +38,12 @@ class Settings:
     phone_port: int = 8001
     stop_m: float = 1.2
     caution_m: float = 2.0
-    trigger_interval_s: float = 1.5
-    trigger_abandon_s: float = 1.0
+    path_half_width_m: float = 0.4
+    hazard_confirm_frames: int = 2
+    trigger_min_interval_s: float = 2.0
+    trigger_keepalive_s: float = 8.0
+    guidance_max_age_s: float = 5.0
+    steering_look_m: float = 3.0
     deadline_offset_ms: float = 0.0
     preview_every: int = 3
     hazard_phrase_cooldown_s: float = 2.0

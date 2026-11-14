@@ -86,9 +86,12 @@ budgets and the measurement method. In summary:
 - **Spoken guidance (target): ≤ 1.0 s p50.** Published figures put our
   default model at roughly 1.0–1.2 s with streamed speech and about 0.9 s on
   a phrase-cache hit; the faster candidate model reaches 0.5–0.8 s.
-- **Staleness rule:** a guidance response not yet playing 1.5 s after its
-  frame was captured is discarded rather than spoken. At walking speed it
-  would describe a scene 1.5 m behind the user.
+- **Staleness rule:** a cloud answer is spoken only while the scene still
+  matches the frame it was asked about, and never more than 5 s after
+  capture. Measured first-token times for new images range from 0.6 s to
+  over 10 s, so a fixed short deadline discarded almost every answer.
+- **Local guidance** steers from the depth grid with no network, so
+  directions keep coming when the cloud is slow or down.
 - **Two feedback tiers** follow from this: a cloud call cannot meet the
   hazard bound, so imminent hazards are handled locally and the cloud is
   used only for guidance.

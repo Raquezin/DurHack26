@@ -2,7 +2,12 @@ from navigator.domain.events import HazardEvent
 from navigator.domain.geometry import Perception
 from navigator.domain.hazard import Bearing, HazardLevel
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
-from navigator.domain.policies.hazard import HazardThresholds, evaluate
+from navigator.domain.policies.hazard import (
+    AlertState,
+    HazardThresholds,
+    announce,
+    evaluate,
+)
 from navigator.domain.speech import Priority, Utterance
 from navigator.ports.clock import Clock
 from navigator.ports.event_publisher import EventPublisher
@@ -29,10 +34,12 @@ class HazardMonitor:
         self._clock = clock
         self._thresholds = thresholds
         self._offset_ns = deadline_offset_ns
+        self._state = AlertState()
 
     def observe(self, perception: Perception) -> None:
         alert = evaluate(perception.geometry, self._thresholds)
-        if alert is None:
+        self._state, speak = announce(self._state, alert, self._thresholds)
+        if not speak:
             return
         self._events.publish(
             HazardEvent(

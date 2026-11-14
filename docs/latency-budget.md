@@ -48,7 +48,7 @@ Consequences we adopt:
 | Hazard | ≤ 300 ms capture → first audio sample | Hard. Above it the alert is useless. |
 | Hazard | ≤ 150 ms p95 | Internal design target (section 3). |
 | Guidance | ≤ 1.0 s p50 capture → first audio sample | Target. |
-| Guidance | 1.5 s | Hard deadline: later responses are discarded, never spoken. |
+| Guidance | 5 s, and the scene must still match | Cloud answers past either are discarded, never spoken. Local guidance has no network term. |
 
 The earlier "ideally ~600 ms" guidance figure is only reachable with a
 ~300 ms time-to-first-token model (section 4). With our default model, expect
@@ -141,8 +141,8 @@ Starting thresholds, to be tuned in the room:
 
 ## 6. Guidance look-ahead
 
-A spoken direction is acted on about 1.5 s after it is heard [M], and may be
-up to 1.5 s old when it starts playing (deadline). The guidance tier must
+A spoken direction is acted on about 1.5 s after it is heard [M], and a
+cloud answer may be 1.5 s old when it starts playing. The guidance tier must
 therefore talk about what is
 
 ```
@@ -167,9 +167,9 @@ means changing the model, resolution or technique, not relaxing the bound.
 | Preview JPEG encode (camera + depth) | 3 ms p99 | runs after the hazard decision, never before it |
 | Hazard decision → first audio sample | 30 ms p99 | fits section 3 |
 | VLM time to first token | 700 ms p50 | keeps guidance near the 1.0 s target |
-| VLM request abandoned | 1.0 s after send without a first token | 110 + 1000 + 40 + 325 + 25 = 1500 ms: the last moment that can still meet the deadline |
+| VLM request abandoned | 5 s after capture | first token for a new image measured at 1.0 s p50, 11.4 s p95 (G2) |
 | TTS time to first audio | 350 ms p95 | fits the 1.5 s deadline |
-| Guidance cadence | ≤ 1 request in flight, ≥ 1.5 s apart unless event-triggered | cost, rate limits, no self-interruption |
+| Guidance cadence | ≤ 1 request in flight; on scene change, ≥ 2 s apart; every 8 s otherwise | cost, rate limits, no self-interruption |
 
 ## 8. How we measure
 

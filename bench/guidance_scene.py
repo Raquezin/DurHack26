@@ -111,8 +111,9 @@ async def feed(board: SceneBoard, base: Perception, clock: SystemClock) -> None:
 
 
 def spoken(events: CollectingEventPublisher) -> bool:
+    asked = {e.delta for e in events.events if isinstance(e, GuidanceTextEvent)}
     return any(
-        isinstance(e, UtteranceEvent) and e.outcome is Outcome.SPOKEN
+        isinstance(e, UtteranceEvent) and e.outcome is Outcome.SPOKEN and e.text in asked
         for e in events.events
     )
 
@@ -147,7 +148,7 @@ async def run_scene(args) -> int:
             arbiter=arbiter,
             events=events,
             clock=clock,
-            trigger_settings=TriggerSettings(interval_s=SETTINGS.trigger_interval_s),
+            trigger_settings=TriggerSettings(min_interval_s=SETTINGS.trigger_min_interval_s),
             deadline_offset_ns=int(SETTINGS.deadline_offset_ms * 1_000_000),
         )
         tasks = [

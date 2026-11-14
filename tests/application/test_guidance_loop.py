@@ -16,14 +16,18 @@ from navigator.domain.phrases import PhraseId
 from navigator.domain.policies.trigger import TriggerSettings
 from navigator.domain.speech import Priority
 
+STILL = (4.0,) * 15
+MOVED = (4.0,) * 5 + (2.0,) * 10
+BLOCKED_RIGHT_OPEN = (8.0,) * 5 + (2.5, 2.5, 2.5, 6.0, 2.5) * 2
 
-def _perception(frame_id, jpeg=b"jpeg", t_capture_ns=0):
+
+def _perception(frame_id, jpeg=b"jpeg", t_capture_ns=0, distances=STILL):
     geometry = SceneGeometry(
         frame_id=frame_id,
         t_capture_ns=t_capture_ns,
         rows=3,
         cols=5,
-        distances_m=(4.0,) * 15,
+        distances_m=distances,
         valid=(True,) * 15,
         horizontal_fov_deg=70.0,
     )
@@ -134,12 +138,12 @@ async def test_perception_without_jpeg_skipped():
     assert not [e for e in events.events if isinstance(e, GuidanceTextEvent)]
 
 
-async def test_utterance_deadline_from_capture_minus_offset():
+async def test_utterance_deadline_from_capture_plus_max_age_minus_offset():
     clock = ManualClock(start_ns=5_000_000_000)
     arbiter = CollectingArbiter()
     guidance = _loop(
         TimedReasoner([0.0]), clock, arbiter, CollectingEventPublisher(),
-        TriggerSettings(), offset_ns=100_000_000,
+        TriggerSettings(max_age_s=5.0), offset_ns=100_000_000,
     )
     task = asyncio.create_task(guidance.run())
     guidance._board.put(_perception(3, t_capture_ns=4_900_000_000))
@@ -149,24 +153,42 @@ async def test_utterance_deadline_from_capture_minus_offset():
     utterance = arbiter.utterances[0]
     assert utterance.priority is Priority.GUIDANCE
     assert utterance.frame_id == 3
-    assert utterance.deadline_ns == 4_900_000_000 + 1_500_000_000 - 100_000_000
+    assert utterance.deadline_ns == 4_900_000_000 + 5_000_000_000 - 100_000_000
 
 
-async def test_fixed_cadence_on_manual_clock():
+async def _feed(guidance, clock, scenes, step_ns=100_000_000):
+    for frame_id, distances in enumerate(scenes, start=1):
+        guidance._board.put(_perception(frame_id, t_capture_ns=clock.now_ns(), distances=distances))
+        await asyncio.sleep(0.005)
+        clock.advance(step_ns)
+
+
+async def test_unchanged_scene_asks_again_only_at_keepalive():
     clock = ManualClock()
     reasoner = TimedReasoner([0.0])
     guidance = _loop(
         reasoner, clock, CollectingArbiter(), CollectingEventPublisher(),
-        TriggerSettings(interval_s=1.5),
+        TriggerSettings(min_interval_s=2.0, keepalive_s=8.0),
     )
     task = asyncio.create_task(guidance.run())
-    for frame_id in range(1, 31):
-        guidance._board.put(_perception(frame_id, t_capture_ns=clock.now_ns()))
-        await asyncio.sleep(0.005)
-        clock.advance(100_000_000)
+    await _feed(guidance, clock, [STILL] * 100)
     guidance.stop()
     await asyncio.wait_for(task, 1.0)
-    assert [r.geometry.frame_id for r in reasoner.requests] == [1, 16]
+    assert [r.geometry.frame_id for r in reasoner.requests] == [1, 81]
+
+
+async def test_changed_scene_asks_after_min_interval():
+    clock = ManualClock()
+    reasoner = TimedReasoner([0.0])
+    guidance = _loop(
+        reasoner, clock, CollectingArbiter(), CollectingEventPublisher(),
+        TriggerSettings(min_interval_s=2.0, keepalive_s=8.0),
+    )
+    task = asyncio.create_task(guidance.run())
+    await _feed(guidance, clock, [STILL] * 10 + [MOVED] * 20)
+    guidance.stop()
+    await asyncio.wait_for(task, 1.0)
+    assert [r.geometry.frame_id for r in reasoner.requests] == [1, 21]
 
 
 async def test_one_request_in_flight():
@@ -174,7 +196,7 @@ async def test_one_request_in_flight():
     reasoner = TimedReasoner([0.2])
     guidance = _loop(
         reasoner, clock, CollectingArbiter(), CollectingEventPublisher(),
-        TriggerSettings(interval_s=0.0, abandon_s=1.0),
+        TriggerSettings(min_interval_s=0.0, keepalive_s=0.0),
     )
     task = asyncio.create_task(guidance.run())
     for frame_id in range(1, 21):
@@ -186,14 +208,14 @@ async def test_one_request_in_flight():
     assert 1 < len(reasoner.requests) < 20
 
 
-async def test_request_abandoned_without_first_instruction():
+async def test_request_abandoned_at_max_age():
     clock = ManualClock()
     reasoner = TimedReasoner([10.0])
     events = CollectingEventPublisher()
     arbiter = CollectingArbiter()
     guidance = _loop(
         reasoner, clock, arbiter, events,
-        TriggerSettings(interval_s=0.0, abandon_s=0.05),
+        TriggerSettings(min_interval_s=0.0, keepalive_s=0.0, max_age_s=0.05),
     )
     task = asyncio.create_task(guidance.run())
     guidance._board.put(_perception(1, t_capture_ns=clock.now_ns()))
@@ -206,18 +228,46 @@ async def test_request_abandoned_without_first_instruction():
     assert not events.events
 
 
-async def test_later_instructions_bounded_by_deadline():
+async def test_slow_answer_spoken_while_scene_holds():
     clock = ManualClock()
-    reasoner = TimedReasoner([0.0, 10.0])
+    reasoner = TimedReasoner([0.1])
     arbiter = CollectingArbiter()
-    guidance = _loop(
-        reasoner, clock, arbiter, CollectingEventPublisher(),
-        TriggerSettings(interval_s=0.0, abandon_s=1.0),
-        offset_ns=1_450_000_000,
-    )
+    guidance = _loop(reasoner, clock, arbiter, CollectingEventPublisher(), TriggerSettings())
     task = asyncio.create_task(guidance.run())
     guidance._board.put(_perception(1, t_capture_ns=clock.now_ns()))
+    clock.advance(3_000_000_000)
+    guidance._board.put(_perception(2, t_capture_ns=clock.now_ns()))
+    assert await _until(lambda: arbiter.utterances, 0.5)
+    guidance.stop()
+    await asyncio.wait_for(task, 1.0)
+    assert arbiter.utterances[0].text == "step 0"
+
+
+async def test_answer_dropped_when_scene_moved_meanwhile():
+    clock = ManualClock()
+    reasoner = TimedReasoner([0.1])
+    arbiter = CollectingArbiter()
+    events = CollectingEventPublisher()
+    guidance = _loop(reasoner, clock, arbiter, events, TriggerSettings())
+    task = asyncio.create_task(guidance.run())
+    guidance._board.put(_perception(1, t_capture_ns=clock.now_ns()))
+    await asyncio.sleep(0.02)
+    guidance._board.put(_perception(2, t_capture_ns=clock.now_ns(), distances=MOVED))
     assert await _until(lambda: reasoner.closed == 1, 0.5)
     guidance.stop()
     await asyncio.wait_for(task, 1.0)
-    assert [u.text for u in arbiter.utterances] == ["step 0"]
+    assert not arbiter.utterances
+    assert not events.events
+
+
+async def test_local_steering_speaks_while_the_cloud_is_silent():
+    clock = ManualClock()
+    arbiter = CollectingArbiter()
+    guidance = _loop(
+        TimedReasoner([10.0]), clock, arbiter, CollectingEventPublisher(), TriggerSettings()
+    )
+    task = asyncio.create_task(guidance.run())
+    await _feed(guidance, clock, [BLOCKED_RIGHT_OPEN] * 10)
+    guidance.stop()
+    await asyncio.wait_for(task, 1.0)
+    assert [u.phrase for u in arbiter.utterances] == [PhraseId.VEER_RIGHT]

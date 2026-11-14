@@ -46,8 +46,8 @@ Directory ownership:
 | Owner | Directories and files |
 | --- | --- |
 | A | `adapters/camera/`, `adapters/perception/`, `application/perception_loop.py`, `fixtures/sessions/`, `bench/` G1 G1b G4 |
-| B | `adapters/reasoner/`, `adapters/speech/`, `application/guidance_loop.py`, `domain/policies/trigger.py`, `domain/phrases.py`, `fixtures/scenes/`, `bench/` G2 G3 |
-| C | `adapters/audio/`, `adapters/ui/`, `application/hazard_monitor.py`, `application/speech_arbiter.py`, `application/scene_board.py`, `domain/policies/hazard.py`, `domain/policies/arbitration.py`, `bootstrap/` |
+| B | `adapters/reasoner/`, `adapters/speech/`, `application/guidance_loop.py`, `domain/policies/trigger.py`, `domain/policies/steering.py`, `domain/phrases.py`, `fixtures/scenes/`, `bench/` G2 G3 |
+| C | `adapters/audio/`, `adapters/ui/`, `application/hazard_monitor.py`, `application/speech_arbiter.py`, `application/scene_board.py`, `domain/policies/hazard.py`, `domain/policies/arbitration.py`, `domain/path.py`, `bootstrap/` |
 | Frozen, steward C | `domain/` contract types, `ports/` — changed only through the protocol in [contracts.md](contracts.md) |
 
 Tests live beside ownership: each owner writes the contract suites for their

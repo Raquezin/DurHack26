@@ -66,9 +66,16 @@ async def test_clear_scene_no_events():
     assert sink.plays == []
 
 
+async def test_one_frame_is_not_enough():
+    monitor, events, sink = await _rig()
+    monitor.observe(_perception(1.0))
+    assert events.events == []
+
+
 async def test_stop_alert_submits_stop_utterance():
     monitor, events, sink = await _rig()
     monitor.observe(_perception(1.0))
+    monitor.observe(_perception(1.0, frame_id=2))
     hazard = events.events[0]
     assert isinstance(hazard, HazardEvent)
     assert hazard.level is HazardLevel.STOP
@@ -79,19 +86,26 @@ async def test_stop_alert_submits_stop_utterance():
     assert len(sink.plays) == 1
 
 
+async def test_held_alert_is_spoken_once():
+    monitor, events, sink = await _rig()
+    for frame_id in range(1, 30):
+        monitor.observe(_perception(1.0, frame_id=frame_id))
+    assert len(sink.plays) == 1
+
+
 async def test_caution_phrase_follows_bearing():
     monitor, events, sink = await _rig()
     monitor.observe(_perception(1.5))
+    monitor.observe(_perception(1.5, frame_id=2))
     utterance = events.events[1]
     assert utterance.text == PHRASE_TEXT[PhraseId.CAUTION_AHEAD]
 
 
 async def test_stale_utterance_dropped():
     monitor, events, sink = await _rig()
-    monitor.observe(_perception(1.0, t_capture_ns=0))
-    clock_late = _perception(1.0, frame_id=2, t_capture_ns=0)
     monitor._clock.advance(400_000_000)
-    monitor.observe(clock_late)
+    monitor.observe(_perception(1.0, t_capture_ns=0))
+    monitor.observe(_perception(1.0, frame_id=2, t_capture_ns=0))
     outcomes = [
         e.outcome for e in events.events if isinstance(e, UtteranceEvent)
     ]

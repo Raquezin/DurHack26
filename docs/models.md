@@ -132,8 +132,7 @@ fp16 is free: both sources report no measurable accuracy change against fp32.
 ### Requirements
 
 - Image + text in, short text out, streamed.
-- Time to first token ≤ 700 ms p50, and under 1.0 s for at least 90 % of
-  requests (a request with no token after 1.0 s is abandoned).
+- Time to first token ≤ 700 ms p50 and under 1.0 s for 90 % of requests.
 - Callable at 0.5–1 Hz for the length of a demo.
 
 ### Candidates
@@ -255,15 +254,16 @@ Results (ours, November 2026):
 | Gate | Setup | Result | Verdict |
 | --- | --- | --- | --- |
 | G1b | iPhone in portrait, 480×640, by hand at a wall, `hfov_deg=58` | 1 m +11.8 %, 2 m −3.5 %, 3 m +7.1 % | pass, scale 1.0 |
-| G2 | `doorway` fixture, server network, 20 requests | 806 ms p50, 1207 ms p95, 90 % under 1.0 s | fail on p50 |
+| G2 | a new walk frame per request, server network, 12 requests | 1037 ms p50, 11.4 s p95, 42 % under 1.0 s | fail |
 | G3 | `eleven_flash_v2_5`, WebSocket per request, 20 sentences | 248 ms p50, 272 ms p95, 380 ms p99 | pass |
 | G4 | webcam, all four modes, `exposure_dynamic_framerate` off | frame interval 32.1 ms p50, ≤ 36.5 ms p99 | glass-to-frame unmeasured |
 
 - G1b: at 70° every distance read 20–25 % short; 58° (iPhone wide camera,
   short side) is now the default. The webcam's field of view is unmeasured.
-- G2: one outlier at 20.6 s. On walk frames at M1 first token took 1.2–4.2 s
-  (same 570-token prompt, no thinking), so most requests hit the 1.0 s
-  abandon. `gemini-2.5-flash-lite` returns HTTP 404 for our key.
+- G2: the first run reused one fixture image and read 806 ms p50; Gemini is
+  fast on an image it has seen and slow on a new one, so that number was
+  flattering. Guidance now waits up to 5 s and checks the scene still
+  matches. `gemini-2.5-flash-lite` returns HTTP 404 for our key.
 - G4: `--glass` needs a screen the camera can film; the GPU server has none.
 
 ## 8. Sources
