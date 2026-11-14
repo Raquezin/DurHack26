@@ -238,12 +238,22 @@ WebSocket, JSON events are text messages and previews are binary messages.
 | `guidance_text` | `request_id`, `delta`, `final` | `GuidanceLoop` |
 | `utterance` | `text`, `priority`, `outcome`, `age_ms` | `SpeechArbiter` |
 | `timing` | stage name → p50, p95, p99 in ms | every service |
+| `preview` | `kind` (`camera` or `depth`), `frame_id`, `jpeg` | `PerceptionLoop` |
 
 `outcome` is one of `spoken`, `dropped_stale`, `dropped_repeat`,
 `replaced`, `interrupted`.
 
-Binary preview message: byte 0 is the kind (1 camera, 2 depth), bytes 1–8
-the `frame_id` as a big-endian integer, the rest a JPEG.
+A `preview` event is sent as the binary message: byte 0 is the kind
+(1 camera, 2 depth), bytes 1–8 the `frame_id` as a big-endian integer, the
+rest a JPEG. Every other event is a JSON text message with a `type` field;
+`inf` distances are sent as `null`.
+
+In code each event type is a frozen dataclass in `domain/events.py`
+(`GeometryEvent`, `HazardEvent`, `GuidanceTextEvent`, `UtteranceEvent`,
+`TimingEvent`, `PreviewEvent`) with a class-level `type` tag, and `Event` is
+their union. `TimingEvent.stages` is a tuple of `StageTiming(name, p50_ms,
+p95_ms, p99_ms)`; `outcome` is the `Outcome` enum and `kind` the
+`PreviewKind` enum.
 
 ## 7. Fakes and fixtures
 

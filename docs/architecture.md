@@ -145,6 +145,41 @@ a replayed session, or with any mix of real and fake adapters is a
 configuration change, not a code change. That mix is how each person works
 before the others' adapters exist.
 
+Run with `uv run navigator --preset all-fakes`; `--adapter port=name`
+(repeatable) swaps one port, `--duration-s` stops the run. Presets:
+`all-fakes`, `replay` (session replay, cloud fakes) and `live` (every real
+adapter). Secrets come from `.env` (`.env.sample` lists the keys); the value
+`placeholder` counts as absent.
+
+Adapter names and constructors. The composition root imports adapter modules
+lazily, so a name may be registered before its module exists. Constructor
+signatures are the seam between the bootstrap owner and the adapter owner;
+changing one is a contract change.
+
+| Port | Name | Class (under `navigator.adapters`) | Constructor | Lifetime |
+| --- | --- | --- | --- | --- |
+| `Clock` | `system` | `clock.system.SystemClock` | `()` | — |
+| `Clock` | `manual` | `clock.manual.ManualClock` | `(start_ns=0)` | — |
+| `FrameSource` | `synthetic` | `camera.synthetic.SyntheticFrameSource` | `(clock, width, height, fps)` | — |
+| `FrameSource` | `webcam` | `camera.webcam.WebcamFrameSource` | `(clock, device, width, height, fps, fourcc)` | context manager |
+| `FrameSource` | `replay` | `camera.replay.ReplayFrameSource` | `(clock, session_dir)` | context manager |
+| `ScenePerception` | `scripted` | `perception.scripted.ScriptedScenePerception` | `(clock, rows, cols, horizontal_fov_deg, start_m, speed_mps)` | — |
+| `ScenePerception` | `gpu` | `perception.gpu.GpuScenePerception` | `(clock, model, input_long_side, rows, cols, horizontal_fov_deg, scale, mount_height_m, pitch_deg)` | context manager |
+| `ScenePerception` | `replay` | `perception.replay.ReplayScenePerception` | `(clock, session_dir)` | — |
+| `SceneReasoner` | `scripted` | `reasoner.scripted.ScriptedSceneReasoner` | `(text, phrase, delay_s)` | — |
+| `SceneReasoner` | `gemini` | `reasoner.gemini.GeminiSceneReasoner` | `(api_key, model, max_output_tokens)` | async context manager |
+| `SpeechSynthesizer` | `tone` | `speech.tone.ToneSpeechSynthesizer` | `(delay_s, seconds_per_char)` | — |
+| `SpeechSynthesizer` | `elevenlabs` | `speech.elevenlabs.ElevenLabsSpeechSynthesizer` | `(api_key, voice_id, model)` | async context manager |
+| `AudioSink` | `recording` | `audio.recording.RecordingAudioSink` | `(clock)` | — |
+| `AudioSink` | `wav` | `audio.wav.WavFileAudioSink` | `(path)` | context manager |
+| `AudioSink` | `device` | `audio.device.SoundDeviceAudioSink` | `(device, block_frames)` | context manager |
+| `EventPublisher` | `collecting` | `ui.collecting.CollectingEventPublisher` | `()` | — |
+| `EventPublisher` | `log` | `ui.log.LogEventPublisher` | `(stream)` | — |
+| `EventPublisher` | `web` | `ui.web.WebEventPublisher` | `(host, port)` | async context manager |
+
+All arguments are keyword arguments with standard-library values (`Path`
+for directories and files).
+
 ## 9. Rules
 
 - Hexagonal dependency rule, enforced by an import-check test.

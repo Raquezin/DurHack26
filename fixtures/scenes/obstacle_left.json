@@ -1,0 +1,42 @@
+{
+  "frame_id": 3,
+  "t_capture_ns": 3000000000,
+  "rows": 3,
+  "cols": 5,
+  "distances_m": [
+    2.77,
+    4.06,
+    null,
+    4.04,
+    null,
+    2.7,
+    2.63,
+    null,
+    4.1,
+    2.7,
+    2.78,
+    2.63,
+    2.58,
+    4.1,
+    2.79
+  ],
+  "valid": [
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "horizontal_fov_deg": 70.0,
+  "expected": "VEER_RIGHT"
+}

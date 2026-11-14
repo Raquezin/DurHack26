@@ -1,0 +1,80 @@
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+
+
+@dataclass(frozen=True, slots=True)
+class Settings:
+    adapters: dict[str, str] = field(default_factory=dict)
+    camera_device: int = 0
+    camera_width: int = 640
+    camera_height: int = 480
+    camera_fps: int = 30
+    camera_fourcc: str = "MJPG"
+    hfov_deg: float = 70.0
+    grid_rows: int = 3
+    grid_cols: int = 5
+    perception_model: str = "da3metric-large"
+    input_long_side: int = 504
+    scale: float = 1.0
+    mount_height_m: float = 1.4
+    pitch_deg: float = 0.0
+    session_dir: Path = Path("fixtures/sessions/default")
+    scripted_start_m: float = 4.0
+    scripted_speed_mps: float = 0.5
+    reasoner_text: str = "Keep going straight."
+    reasoner_phrase: str | None = "GO_STRAIGHT"
+    reasoner_delay_s: float = 0.2
+    gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_max_output_tokens: int = 40
+    elevenlabs_model: str = "eleven_flash_v2_5"
+    tone_delay_s: float = 0.05
+    tone_seconds_per_char: float = 0.03
+    audio_device: int | None = None
+    audio_block_frames: int = 240
+    wav_path: Path = Path("out/speech.wav")
+    web_host: str = "127.0.0.1"
+    web_port: int = 8000
+    stop_m: float = 1.2
+    caution_m: float = 2.0
+    trigger_interval_s: float = 1.5
+    deadline_offset_ms: float = 0.0
+    preview_every: int = 3
+
+
+PRESETS = {
+    "all-fakes": {
+        "clock": "system",
+        "frame_source": "synthetic",
+        "scene_perception": "scripted",
+        "scene_reasoner": "scripted",
+        "speech_synthesizer": "tone",
+        "audio_sink": "recording",
+        "event_publisher": "log",
+    },
+    "replay": {
+        "clock": "system",
+        "frame_source": "replay",
+        "scene_perception": "replay",
+        "scene_reasoner": "scripted",
+        "speech_synthesizer": "tone",
+        "audio_sink": "recording",
+        "event_publisher": "log",
+    },
+    "live": {
+        "clock": "system",
+        "frame_source": "webcam",
+        "scene_perception": "gpu",
+        "scene_reasoner": "gemini",
+        "speech_synthesizer": "elevenlabs",
+        "audio_sink": "device",
+        "event_publisher": "web",
+    },
+}
+
+
+def resolve(preset: str, overrides: dict[str, str]) -> Settings:
+    if preset not in PRESETS:
+        raise ValueError(f"unknown preset {preset!r}")
+    adapters = dict(PRESETS[preset])
+    adapters.update(overrides)
+    return Settings(adapters=adapters)

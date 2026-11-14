@@ -1,0 +1,9 @@
+from typing import Protocol
+
+from navigator.domain.speech import PcmChunk
+
+
+class AudioSink(Protocol):
+    def play(self, chunk: PcmChunk) -> None: ...
+    def interrupt(self) -> None: ...
+    def is_playing(self) -> bool: ...

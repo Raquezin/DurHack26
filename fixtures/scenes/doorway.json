@@ -1,0 +1,42 @@
+{
+  "frame_id": 4,
+  "t_capture_ns": 4000000000,
+  "rows": 3,
+  "cols": 5,
+  "distances_m": [
+    2.77,
+    4.12,
+    4.08,
+    4.12,
+    2.77,
+    2.7,
+    4.02,
+    8.0,
+    4.01,
+    2.7,
+    2.8,
+    4.13,
+    null,
+    4.12,
+    2.79
+  ],
+  "valid": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "horizontal_fov_deg": 70.0,
+  "expected": "DOOR_AHEAD"
+}
