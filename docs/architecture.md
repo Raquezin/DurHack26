@@ -147,8 +147,12 @@ before the others' adapters exist.
 
 Run with `uv run navigator --preset all-fakes`; `--adapter port=name`
 (repeatable) swaps one port, `--duration-s` stops the run. Presets:
-`all-fakes`, `replay` (session replay, cloud fakes) and `live` (every real
-adapter). Secrets come from `.env` (`.env.sample` lists the keys); the value
+`all-fakes`, `replay` (session replay, cloud fakes), `live` (every real
+adapter), `phone` (phone camera and speaker, the rest real), `video`
+(recorded frames through real GPU, Gemini and ElevenLabs, speech to a WAV
+file) and `live-offline` (webcam and GPU, cloud fakes). A session comes from
+`bench/record_session.py`, with `--camera webcam|phone` or from a video file
+with `--video clip.mp4`. Secrets come from `.env` (`.env.sample` lists the keys); the value
 `placeholder` counts as absent.
 
 Adapter names and constructors. The composition root imports adapter modules

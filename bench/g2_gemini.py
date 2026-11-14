@@ -11,7 +11,7 @@ from navigator.adapters.reasoner.prompt import parse_answer
 from navigator.bootstrap.secrets import Secrets
 from navigator.domain.guidance import GuidanceRequest
 
-MODELS = ("gemini-3.5-flash-lite", "gemini-2.5-flash-lite")
+MODEL = "gemini-3.5-flash-lite"
 ABANDON_S = 1.0
 
 
@@ -21,7 +21,7 @@ def percentile(values: list[float], q: float) -> float:
 
 
 async def one_request(aio, model: str, request: GuidanceRequest):
-    config = generation_config(model, SETTINGS.gemini_max_output_tokens)
+    config = generation_config(SETTINGS.gemini_max_output_tokens)
     start = time.perf_counter()
     first = None
     text = ""
@@ -97,7 +97,7 @@ def main() -> int:
     parser.add_argument("--scene", default="doorway", choices=scene_names())
     parser.add_argument("-n", type=int, default=20)
     parser.add_argument("--warmup", type=int, default=1)
-    parser.add_argument("--models", nargs="+", default=list(MODELS))
+    parser.add_argument("--models", nargs="+", default=[MODEL])
     return asyncio.run(main_async(parser.parse_args()))
 
 

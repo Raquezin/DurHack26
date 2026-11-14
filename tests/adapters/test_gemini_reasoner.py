@@ -122,15 +122,6 @@ async def test_request_configuration_and_payload(install):
     assert clients[0].closed
 
 
-async def test_thinking_budget_zero_on_2_5(install):
-    models = FakeModels(["GO_STRAIGHT"])
-    install(models)
-    await _advise(model="gemini-2.5-flash-lite")
-    config = models.calls[0].config.thinking_config
-    assert config.thinking_budget == 0
-    assert config.thinking_level is None
-
-
 async def test_provider_error_on_call_ends_stream(install):
     models = FakeModels([], error=RuntimeError("quota"))
     install(models)

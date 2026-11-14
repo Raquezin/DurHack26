@@ -135,7 +135,7 @@ what the camera sees, what the model perceives, what the system says.
 - **ElevenLabs** — text-to-speech with `eleven_flash_v2_5`: streamed over
   WebSocket for guidance, pre-rendered for the phrase cache.
 - **Google API** — vision-language reasoning with `gemini-3.5-flash-lite`
-  (or `gemini-2.5-flash-lite` if our key can call it) over small RGB frames
+  over small RGB frames
   and zone distances.
 
 ## Team & infra notes

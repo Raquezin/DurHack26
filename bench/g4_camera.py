@@ -4,6 +4,7 @@ import threading
 
 import cv2
 import numpy as np
+from rig import add_arguments, first_frame, rig, settings_from
 
 from navigator.adapters.camera.webcam import WebcamFrameSource
 from navigator.adapters.clock.system import SystemClock
@@ -84,8 +85,7 @@ def _delays(flashes, samples):
     return threshold, np.median(settled[True]), np.median(settled[False]), delays
 
 
-def glass(device, fourcc, width, height, fps, flashes_n):
-    clock = SystemClock()
+def glass(settings, flashes_n):
     cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
     cv2.setWindowProperty(WINDOW, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     planes = {
@@ -93,7 +93,8 @@ def glass(device, fourcc, width, height, fps, flashes_n):
         for white in (True, False)
     }
     samples, flashes, stop = [], [], threading.Event()
-    with _source(clock, device, fourcc, width, height, fps) as camera:
+    with rig(settings, perception=False) as (clock, camera, _):
+        first_frame(camera)
         collector = threading.Thread(target=_collect, args=(camera, stop, samples))
         collector.start()
         cv2.imshow(WINDOW, planes[False])
@@ -109,7 +110,7 @@ def glass(device, fourcc, width, height, fps, flashes_n):
         collector.join()
     cv2.destroyAllWindows()
     threshold, white_level, black_level, delays = _delays(flashes, samples)
-    print(f"{fourcc} {width}x{height}: levels white {white_level:.1f} black {black_level:.1f} threshold {threshold:.1f}")
+    print(f"{settings.adapters['frame_source']}: levels white {white_level:.1f} black {black_level:.1f} threshold {threshold:.1f}")
     if len(delays) < flashes_n // 2:
         print(f"only {len(delays)} of {flashes_n - 1} flashes detected; is the camera facing the screen?")
         return
@@ -125,13 +126,11 @@ def main():
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--seconds", type=float, default=5.0)
     parser.add_argument("--glass", action="store_true")
-    parser.add_argument("--fourcc", default="MJPG")
-    parser.add_argument("--width", type=int, default=640)
-    parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--flashes", type=int, default=40)
+    add_arguments(parser)
     args = parser.parse_args()
     if args.glass:
-        glass(args.device, args.fourcc, args.width, args.height, args.fps, args.flashes)
+        glass(settings_from(args), args.flashes)
     else:
         intervals(args.device, args.fps, args.seconds)
 

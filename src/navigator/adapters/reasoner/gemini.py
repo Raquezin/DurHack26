@@ -13,20 +13,14 @@ from navigator.adapters.reasoner.prompt import (
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
 
 
-def thinking_config(model: str) -> types.ThinkingConfig:
-    if model.startswith("gemini-2."):
-        return types.ThinkingConfig(thinking_budget=0)
-    return types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
-
-
-def generation_config(
-    model: str, max_output_tokens: int
-) -> types.GenerateContentConfig:
+def generation_config(max_output_tokens: int) -> types.GenerateContentConfig:
     return types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
         max_output_tokens=max_output_tokens,
         media_resolution=types.MediaResolution.MEDIA_RESOLUTION_LOW,
-        thinking_config=thinking_config(model),
+        thinking_config=types.ThinkingConfig(
+            thinking_level=types.ThinkingLevel.MINIMAL
+        ),
     )
 
 
@@ -41,7 +35,7 @@ class GeminiSceneReasoner:
     def __init__(self, api_key: str, model: str, max_output_tokens: int) -> None:
         self._api_key = api_key
         self._model = model
-        self._config = generation_config(model, max_output_tokens)
+        self._config = generation_config(max_output_tokens)
         self._client = None
 
     async def __aenter__(self) -> "GeminiSceneReasoner":

@@ -48,6 +48,8 @@ class PhoneLink:
         return self
 
     async def __aexit__(self, *exc) -> None:
+        if self._ws is not None:
+            await self._ws.close()
         if self._runner is not None:
             await self._runner.cleanup()
 

@@ -10,7 +10,7 @@ class Settings:
     camera_height: int = 480
     camera_fps: int = 30
     camera_fourcc: str = "MJPG"
-    hfov_deg: float = 70.0
+    hfov_deg: float = 58.0
     grid_rows: int = 3
     grid_cols: int = 5
     perception_model: str = "da3metric-large"
@@ -82,6 +82,15 @@ PRESETS = {
         "scene_reasoner": "gemini",
         "speech_synthesizer": "elevenlabs",
         "audio_sink": "phone",
+        "event_publisher": "web",
+    },
+    "video": {
+        "clock": "system",
+        "frame_source": "replay",
+        "scene_perception": "gpu",
+        "scene_reasoner": "gemini",
+        "speech_synthesizer": "elevenlabs",
+        "audio_sink": "wav",
         "event_publisher": "web",
     },
     "live-offline": {

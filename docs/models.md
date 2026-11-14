@@ -13,7 +13,7 @@ section 2, the rest in section 7).
 | Stage | Primary | Fallback | Runs |
 | --- | --- | --- | --- |
 | Depth | Depth Anything 3 Metric-Large (`da3metric-large`) | DA3 Metric-Large at long side 392; then DA V2 Metric Hypersim-S | local GPU |
-| Reasoning | `gemini-3.5-flash-lite`, thinking `MINIMAL`, streamed | `gemini-2.5-flash-lite` if our key has access | Google API |
+| Reasoning | `gemini-3.5-flash-lite`, thinking `MINIMAL`, streamed | none: `gemini-2.5-flash-lite` refuses our key (G2) | Google API |
 | Speech, guidance | ElevenLabs `eleven_flash_v2_5`, `stream-input` WebSocket | HTTP streaming endpoint, same model | ElevenLabs API |
 | Speech, hazards | Same model, rendered once at startup into a local phrase cache | — | local playback |
 
@@ -141,17 +141,13 @@ fp16 is free: both sources report no measurable accuracy change against fp32.
 | Model | Time to first token | Output speed | Status | Note |
 | --- | --- | --- | --- | --- |
 | **`gemini-3.5-flash-lite`** | 0.64–0.80 s p50 | ≈ 140–350 tokens/s | stable, recommended for new projects | thinking defaults to `MINIMAL` |
-| **`gemini-2.5-flash-lite`** | ≈ 0.3 s | ≈ 300 tokens/s | served "until further notice", only to accounts that used it before | thinking off by default |
-| `gemini-2.5-flash` | ≈ 0.4 s | ≈ 200 tokens/s | deprecated; routed to 3.5 Flash-Lite from 1 Dec 2026 | do not build on it |
+| `gemini-2.5-flash-lite` | ≈ 0.3 s | ≈ 300 tokens/s | 404 for our key (G2) | not available to new users |
 | `gemini-3.1-flash-lite` | 4.3 s on one aggregator | ≈ 360 tokens/s | stable | no reason to prefer it |
 | `gemini-3.8-live` (Live API) | 1.9 s median response, 2.4 s p95 | audio out | stable | see below |
 
-The 3.5 Flash-Lite figures need care. Routers that report production traffic
-show 0.64–0.80 s p50. One benchmark shows 1.1 s including thinking. Artificial
-Analysis shows 4.6 s to the first *answer* token, a figure that by definition
-includes thinking time on reasoning-heavy tasks. The spread is thinking: it
-must be pinned to `MINIMAL`, and gate G2 must confirm the result with our
-payload.
+Published 3.5 Flash-Lite figures range from 0.64 s p50 (router traffic) to
+4.6 s (first answer token, thinking included), so thinking is pinned to
+`MINIMAL`.
 
 ### Decision
 
@@ -162,9 +158,6 @@ responses to the 1.5 s deadline. Three levers, in order: the phrase
 cache (section 4), a smaller image, and the priority inference tier (0.58 s
 p50 reported).
 
-**Try first: `gemini-2.5-flash-lite`.** If our API key can call it, it is
-the faster model and becomes the default. This is a five-minute check.
-
 **Not the Live API.** It is designed for this kind of use, but it does not
 fit our design:
 
@@ -174,12 +167,11 @@ fit our design:
 - Measured median response is 1.9 s, above our 1.5 s discard deadline.
 - Audio-plus-video sessions last 2 minutes without context compression.
 
-It remains a stretch option for a conversational "what is in front of me?"
-mode.
+It remains a stretch option for "what is in front of me?" on demand.
 
 ### Request configuration
 
-- Streaming response; thinking pinned to `MINIMAL` (or off on 2.5).
+- Streaming response; thinking pinned to `MINIMAL`.
 - Output capped at about 40 tokens.
 - One downscaled JPEG (long side ≤ 512 px) plus the zone distances as text.
   Lowest media-resolution setting that still reads the scene.
@@ -258,12 +250,21 @@ the demo hardware and venue network.
 | G3 | ElevenLabs time to first audio over the open WebSocket | ≤ 350 ms p95 | regional endpoint; HTTP streaming; widen phrase cache |
 | G4 | Camera glass-to-frame delay per capture format | ≤ 70 ms | other pixel format, resolution or camera |
 
-G4 so far (ours, `bench/g4_camera.py`): MJPG at 640×480, 1280×720 and
-1920×1080 and YUYV at 640×480 all deliver frames every 32.1 ms p50,
-36.1–36.5 ms p99, arrival jitter ≤ 4.3 ms p99, none skipped, with
-`exposure_dynamic_framerate` off. The camera was streaming its privacy
-placeholder at the time. Glass-to-frame (`--glass`) and G1b are not yet
-measured: both need a person at the camera.
+Results (ours, November 2026):
+
+| Gate | Setup | Result | Verdict |
+| --- | --- | --- | --- |
+| G1b | iPhone in portrait, 480×640, by hand at a wall, `hfov_deg=58` | 1 m +11.8 %, 2 m −3.5 %, 3 m +7.1 % | pass, scale 1.0 |
+| G2 | `doorway` fixture, server network, 20 requests | 806 ms p50, 1207 ms p95, 90 % under 1.0 s | fail on p50 |
+| G3 | `eleven_flash_v2_5`, WebSocket per request, 20 sentences | 248 ms p50, 272 ms p95, 380 ms p99 | pass |
+| G4 | webcam, all four modes, `exposure_dynamic_framerate` off | frame interval 32.1 ms p50, ≤ 36.5 ms p99 | glass-to-frame unmeasured |
+
+- G1b: at 70° every distance read 20–25 % short; 58° (iPhone wide camera,
+  short side) is now the default. The webcam's field of view is unmeasured.
+- G2: one outlier at 20.6 s. On walk frames at M1 first token took 1.2–4.2 s
+  (same 570-token prompt, no thinking), so most requests hit the 1.0 s
+  abandon. `gemini-2.5-flash-lite` returns HTTP 404 for our key.
+- G4: `--glass` needs a screen the camera can film; the GPU server has none.
 
 ## 8. Sources
 

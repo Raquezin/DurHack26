@@ -10,8 +10,8 @@ Every figure is tagged:
   section). None of these were taken on our hardware or network.
 - **[E]** — our engineering estimate. Unverified until we measure it.
 
-Nothing here has been measured by us yet. The benchmark gates in
-[models.md](models.md) replace the tags with our own numbers.
+Figures marked "ours" were measured by us; the benchmark gates in
+[models.md](models.md) replace the remaining tags as they run.
 
 ## 1. What the research says
 
@@ -74,25 +74,38 @@ laptop GPU, garbage collection, and a webcam slower than assumed. The capture
 stage is the largest and least controllable line; it is the first thing to
 measure.
 
+Measured at M1 (ours, RTX 5070 Ti Laptop, `UtteranceEvent.age_ms` of spoken
+hazard clips: frame arrival → clip handed to the sink):
+
+| Run | Spoken hazards | p50 ms | p95 ms | max ms |
+| --- | --- | --- | --- | --- |
+| `phone` preset, live walk to a wall | 47 | 17 | 18 | 37 |
+| `video` preset, recorded walk replayed | 41 | 16 | 16 | 22 |
+
+Both are far inside the 150 ms target. Not included: phone capture, JPEG
+encode and upload before arrival, and playback on the phone after; the phone
+link round trip is 48–55 ms through the Cloudflare tunnel. Glass-to-frame is
+still unmeasured: the GPU machine is a remote server with no screen to flash.
+
 ## 4. Guidance path budget
 
 Camera → geometry → trigger → Gemini → ElevenLabs → headphones, p50.
 
-| Stage | Gemini 3.5 Flash-Lite | Gemini 2.5 Flash-Lite | Basis |
-| --- | --- | --- | --- |
-| Capture → SceneGeometry | 100 | 100 | [E] section 3 |
-| Trigger, JPEG encode, request build | 10 | 10 | [E] |
-| Network + time to first token | ≈ 700 | ≈ 300 | [M] third-party p50, text prompts |
-| First phrase complete (≈ 12 tokens at ≈ 290 tokens/s) | 40 | 40 | [M] output speed |
-| TTS time to first audio | 150–325 | 150–325 | [M] independent benchmarks |
-| Audio output | 25 | 25 | [E] |
-| **Total, streamed TTS** | **≈ 1.0–1.2 s** | **≈ 0.6–0.8 s** | |
-| **Total, phrase-cache hit (no TTS)** | **≈ 0.9 s** | **≈ 0.5 s** | |
+| Stage | Gemini 3.5 Flash-Lite | Basis |
+| --- | --- | --- |
+| Capture → SceneGeometry | 100 | [E] section 3 |
+| Trigger, JPEG encode, request build | 10 | [E] |
+| Network + time to first token | 806 | ours, G2 p50 with image; 1207 p95; 1.2–4.2 s on recorded walk frames at M1 |
+| First phrase complete (≈ 12 tokens at ≈ 290 tokens/s) | 40 | [M] output speed |
+| TTS time to first audio | 248 | ours, G3 p50; 272 p95 |
+| Audio output | 25 | [E] |
+| **Total, streamed TTS** | **≈ 1.23 s** | sum; over the 1.0 s target |
+| **Total, phrase-cache hit (no TTS)** | **≈ 0.98 s** | sum |
 
 Notes:
 
-- Time to first token is the dominant term and the least certain. The cited
-  figures are for text prompts; an image adds upload and processing time.
+- Time to first token is the dominant term and the least certain. With our
+  image payload it is 806 ms p50 (G2), above the 700 ms target.
 - Published figures for the primary model range from 0.64 s (router
   production traffic) to 4.6 s (first answer token on a reasoning-heavy
   benchmark, thinking time included). Thinking must be pinned to its minimum.
