@@ -60,10 +60,10 @@ Camera → depth → zone distances → rule → cached clip. No network.
 
 | Stage | Budget (ms) | Expected (ms) | Basis |
 | --- | --- | --- | --- |
-| Sensor exposure, USB, driver, wait for next frame | 70 | 35–100 | [E] 33 ms frame interval at 30 fps plus transfer; [M] 133 ms anecdote includes display |
-| Upload + fused preprocess | 2 | < 1 | [E] |
-| Depth network | 20 | 5–15 | [M] 4.5–14.7 ms on RTX 5060 Ti ([models.md](models.md)) |
-| Zone reduction + result download | 2 | < 1 | [E] |
+| Sensor exposure, USB, driver, wait for next frame | 70 | 35–100 | [E] glass-to-frame not yet measured; ours, G4: frame interval 32.1 ms p50, 36.5 ms p99 with `exposure_dynamic_framerate=0` |
+| Upload + fused preprocess | 2 | 0.3 with zone reduction | ours, G1: perceive − forward at p50 |
+| Depth network | 20 | 15.7 p50, 16.0 p99 | ours, G1 at long side 504 ([models.md](models.md)) |
+| Zone reduction + result download | 2 | included above | ours, G1 |
 | Hazard rule + speech arbiter | 1 | < 1 | [E] |
 | Cached clip → DAC | 25 | 10–25 | [E] small PortAudio buffer |
 | Scheduling jitter | 30 | — | [E] |

@@ -37,8 +37,12 @@ class Settings:
     stop_m: float = 1.2
     caution_m: float = 2.0
     trigger_interval_s: float = 1.5
+    trigger_abandon_s: float = 1.0
     deadline_offset_ms: float = 0.0
     preview_every: int = 3
+    hazard_phrase_cooldown_s: float = 2.0
+    guidance_phrase_cooldown_s: float = 5.0
+    phrase_cache_dir: Path = Path("out/phrase_cache")
 
 
 PRESETS = {
@@ -66,6 +70,15 @@ PRESETS = {
         "scene_perception": "gpu",
         "scene_reasoner": "gemini",
         "speech_synthesizer": "elevenlabs",
+        "audio_sink": "device",
+        "event_publisher": "web",
+    },
+    "live-offline": {
+        "clock": "system",
+        "frame_source": "webcam",
+        "scene_perception": "gpu",
+        "scene_reasoner": "scripted",
+        "speech_synthesizer": "tone",
         "audio_sink": "device",
         "event_publisher": "web",
     },

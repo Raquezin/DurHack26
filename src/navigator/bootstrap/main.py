@@ -16,6 +16,15 @@ from navigator.bootstrap.secrets import Secrets
 from navigator.domain.policies.hazard import HazardThresholds
 from navigator.domain.policies.trigger import TriggerSettings
 
+
+def _voice_key(settings, secrets) -> str:
+    name = settings.adapters["speech_synthesizer"]
+    if name == "elevenlabs":
+        voice = secrets.get("ELEVENLABS_VOICE_ID") or "unknown"
+        return f"elevenlabs:{voice}:{settings.elevenlabs_model}"
+    return name
+
+
 _SERVICE_PORTS = [
     "frame_source",
     "scene_perception",
@@ -58,7 +67,10 @@ async def _run(settings, duration_s) -> None:
         for port in _SERVICE_PORTS:
             obj = adapters.build(port, settings, clock, secrets)
             built[port] = await _enter(stack, obj)
-        cache = PhraseCache()
+        voice_key = _voice_key(settings, secrets)
+        cache = PhraseCache(
+            directory=settings.phrase_cache_dir, voice_key=voice_key
+        )
         await cache.build(built["speech_synthesizer"])
         board = SceneBoard()
         loop = asyncio.get_running_loop()
@@ -69,6 +81,8 @@ async def _run(settings, duration_s) -> None:
             events=built["event_publisher"],
             clock=clock,
             loop=loop,
+            hazard_phrase_cooldown_s=settings.hazard_phrase_cooldown_s,
+            guidance_phrase_cooldown_s=settings.guidance_phrase_cooldown_s,
         )
         monitor = HazardMonitor(
             arbiter=arbiter,
@@ -95,7 +109,8 @@ async def _run(settings, duration_s) -> None:
             events=built["event_publisher"],
             clock=clock,
             trigger_settings=TriggerSettings(
-                interval_s=settings.trigger_interval_s
+                interval_s=settings.trigger_interval_s,
+                abandon_s=settings.trigger_abandon_s,
             ),
             deadline_offset_ns=offset_ns,
         )

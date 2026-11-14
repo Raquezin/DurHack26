@@ -55,7 +55,7 @@ def test_events_reach_observer(factory):
         payload = json.loads(lines[0])
         assert payload["type"] == "utterance"
         assert payload["outcome"] == "spoken"
-        assert payload["priority"] == 0
+        assert payload["priority"] == "hazard"
 
 
 @pytest.mark.parametrize("factory", FACTORIES)

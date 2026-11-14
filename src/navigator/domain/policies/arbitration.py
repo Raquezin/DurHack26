@@ -7,3 +7,7 @@ def is_stale(utterance: Utterance, now_ns: int) -> bool:
 
 def preempts(new_priority: Priority, playing_priority: Priority) -> bool:
     return new_priority < playing_priority
+
+
+def is_hazard(utterance: Utterance) -> bool:
+    return utterance.priority == Priority.HAZARD

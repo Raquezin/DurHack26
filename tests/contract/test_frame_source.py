@@ -1,9 +1,15 @@
+import contextlib
+import time
+from pathlib import Path
+
 import pytest
 
+from navigator.adapters.camera.replay import ReplayFrameSource
 from navigator.adapters.camera.synthetic import SyntheticFrameSource
 from navigator.adapters.clock.system import SystemClock
 
 FPS = 30
+SESSION = Path(__file__).resolve().parents[2] / "fixtures" / "sessions" / "default"
 
 
 def _synthetic():
@@ -12,38 +18,57 @@ def _synthetic():
     )
 
 
-FACTORIES = [_synthetic]
+def _replay():
+    return ReplayFrameSource(clock=SystemClock(), session_dir=SESSION)
 
 
-@pytest.mark.parametrize("factory", FACTORIES)
-def test_frame_shape_and_stamp(factory):
-    source = factory()
+def _webcam():
+    webcam = pytest.importorskip("navigator.adapters.camera.webcam")
+    return webcam.WebcamFrameSource(
+        clock=SystemClock(), device=0, width=640, height=480, fps=FPS, fourcc="MJPG"
+    )
+
+
+FACTORIES = [
+    pytest.param(_synthetic, id="synthetic"),
+    pytest.param(_replay, id="replay"),
+    pytest.param(_webcam, id="webcam", marks=pytest.mark.camera),
+]
+
+
+@pytest.fixture(params=FACTORIES)
+def source(request):
+    adapter = request.param()
+    with contextlib.ExitStack() as stack:
+        if hasattr(adapter, "__enter__"):
+            try:
+                stack.enter_context(adapter)
+            except RuntimeError as error:
+                pytest.skip(str(error))
+        yield adapter
+
+
+def test_frame_shape_and_stamp(source):
     frame = source.next_frame(-1, timeout_s=1.0)
     assert frame is not None
     assert len(frame.pixels) == frame.width * frame.height * 3
     assert frame.t_capture_ns > 0
 
 
-@pytest.mark.parametrize("factory", FACTORIES)
-def test_ids_increase_and_never_repeat(factory):
-    source = factory()
+def test_ids_increase_and_never_repeat(source):
     first = source.next_frame(-1, timeout_s=1.0)
     second = source.next_frame(first.frame_id, timeout_s=1.0)
     assert second.frame_id > first.frame_id
-    seen = {first.frame_id, second.frame_id}
-    assert len(seen) == 2
+    assert source.next_frame(-1, timeout_s=1.0).frame_id > second.frame_id
 
 
-@pytest.mark.parametrize("factory", FACTORIES)
-def test_timeout_returns_none(factory):
-    source = factory()
+def test_timeout_returns_none(source):
     frame = source.next_frame(-1, timeout_s=1.0)
     assert source.next_frame(frame.frame_id, timeout_s=0.0) is None
 
 
-@pytest.mark.parametrize("factory", FACTORIES)
-def test_skips_to_newest(factory):
-    source = factory()
-    source.next_frame(-1, timeout_s=1.0)
-    frame = source.next_frame(-1, timeout_s=1.0)
-    assert frame.frame_id >= 0
+def test_skips_to_newest(source):
+    first = source.next_frame(-1, timeout_s=1.0)
+    time.sleep(0.2)
+    newest = source.next_frame(-1, timeout_s=1.0)
+    assert newest.frame_id > first.frame_id + 1

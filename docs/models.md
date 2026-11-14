@@ -4,15 +4,15 @@ Which model runs at each stage, why, how it is configured, and what we still
 have to measure. Latency bounds referenced here are defined in
 [latency-budget.md](latency-budget.md).
 
-All timings below are published by third parties (sources at the end). None
-was measured on our machine. The gates in the last section decide the final
-choice with our own numbers.
+Timings are published by third parties (sources at the end) unless stated
+as ours. Our own gate results replace them as they are measured (G1 in
+section 2, the rest in section 7).
 
 ## 1. Decisions at a glance
 
 | Stage | Primary | Fallback | Runs |
 | --- | --- | --- | --- |
-| Depth | Depth Anything 3 Metric-Large (`da3metric-large`) | Depth Anything V2 Metric Hypersim Small | local GPU |
+| Depth | Depth Anything 3 Metric-Large (`da3metric-large`) | DA3 Metric-Large at long side 392; then DA V2 Metric Hypersim-S | local GPU |
 | Reasoning | `gemini-3.5-flash-lite`, thinking `MINIMAL`, streamed | `gemini-2.5-flash-lite` if our key has access | Google API |
 | Speech, guidance | ElevenLabs `eleven_flash_v2_5`, `stream-input` WebSocket | HTTP streaming endpoint, same model | ElevenLabs API |
 | Speech, hazards | Same model, rendered once at startup into a local phrase cache | — | local playback |
@@ -58,8 +58,8 @@ small V2 metric model. Run it at its native size (long side ≈ 504 px): the
 same benchmark shows its scale drifting at larger inputs (14 % at 700×1008,
 55 % at full resolution).
 
-**Fallback: DA V2 Metric Hypersim-S.** Three times faster, so it is the
-answer if the laptop throttles or the primary misses the bound. Its raw scale
+**Second fallback: DA V2 Metric Hypersim-S.** Three times faster, but not
+in `fastforks` 0.1.0, so it needs the TensorRT path. Its raw scale
 is poor — it places surfaces about 1.45× too close in that benchmark — but
 its shape is good (8.9 % with the right scale), so it must be used with the
 scale calibration below. Its metric head saturates at 20 m, which is
@@ -69,6 +69,28 @@ Rejected: Depth Pro (24× slower than DA3 Metric-Large on the same device),
 UniDepth V2 (non-commercial, slower), Metric3D v2-S (60 % raw error),
 YOLO26-depth (AGPL, single global scale needs per-camera calibration, and its
 speed advantage buys nothing once the V2-S fallback is already at 4.5 ms).
+
+### Gate G1, measured
+
+Ours: `bench/g1_depth.py` on the RTX 5070 Ti Laptop GPU, `fastforks` 0.1.0
+kernels, one 640×480 webcam frame, 20 warm-up passes, then 1000 frames per
+row timed with CUDA events. `perceive` is the whole adapter call: upload,
+colour swap, forward, zone reduction and the one 30-value download.
+
+| Long side | Stage | p50 ms | p95 ms | p99 ms | max ms |
+| --- | --- | --- | --- | --- | --- |
+| 504 | forward | 15.71 | 15.86 | 15.96 | 16.36 |
+| 504 | perceive | 16.02 | 16.17 | 16.24 | 16.70 |
+| 504 | perceive + both GPU JPEGs | 16.32 | 16.55 | 16.67 | 17.00 |
+| 392 | forward | 10.19 | 10.30 | 10.34 | 10.50 |
+| 392 | perceive | 10.49 | 10.60 | 10.68 | 10.93 |
+| 392 | perceive + both GPU JPEGs | 10.82 | 10.98 | 11.02 | 11.05 |
+
+The GPU went from 36 °C to 72 °C during the run (2062 MHz at the end); the
+10-minute run of A6 is still owed. **Decision: DA3 Metric-Large at long side
+504.** G1 passes with 4 ms to spare; zone reduction and upload add 0.3 ms,
+previews 0.3–0.4 ms. Long side 392 saves 5.6 ms and is the first lever if
+throttling eats the margin; its accuracy waits for G1b.
 
 ### Calibration
 
@@ -95,7 +117,7 @@ Three ways to run the same weights, fastest first:
 | Backend | DA3 Metric-L | DA V2-S | Start-up cost | Note |
 | --- | --- | --- | --- | --- |
 | TensorRT fp16 engine | 14.4 ms | 4.5 ms | 30–60 s engine build, cached | engine is tied to GPU and TensorRT version |
-| `fastforks` custom CUDA kernels | 14.7 ms | 4.7 ms | none | prebuilt for compute capability 12.0; needs driver ≥ 570 |
+| `fastforks` custom CUDA kernels | 14.7 ms; ours 15.7 ms p50 (G1) | 4.7 ms | none | prebuilt for compute capability 12.0; needs driver ≥ 570 |
 | Plain PyTorch fp16 | 24.3 ms | 7.7 ms | none | always works; DA3 misses the 20 ms bound |
 
 Start with `fastforks` kernels: no build step and already within budget. Keep
@@ -217,9 +239,8 @@ RTX 5070, re-run gate G1 there.
 
 | Consumer | Memory |
 | --- | --- |
-| DA3 Metric-Large, fp16 | ≈ 0.8–1.5 GB |
+| DA3 Metric-Large with buffers and JPEG encoder, long side 504 | 0.63 GiB allocated, 0.78 GiB peak (ours) |
 | DA V2 Metric-S, fp16 | ≈ 0.2–0.3 GB |
-| Kernels, buffers, JPEG encoder | < 0.2 GB (estimate) |
 
 Memory is not a constraint. Both depth models can be loaded together to
 compare them live.
@@ -236,6 +257,13 @@ the demo hardware and venue network.
 | G2 | Time to first token with the real payload, both Gemini models | ≤ 700 ms p50 and ≥ 90 % under 1.0 s | smaller image; shorter prompt; priority tier; other model |
 | G3 | ElevenLabs time to first audio over the open WebSocket | ≤ 350 ms p95 | regional endpoint; HTTP streaming; widen phrase cache |
 | G4 | Camera glass-to-frame delay per capture format | ≤ 70 ms | other pixel format, resolution or camera |
+
+G4 so far (ours, `bench/g4_camera.py`): MJPG at 640×480, 1280×720 and
+1920×1080 and YUYV at 640×480 all deliver frames every 32.1 ms p50,
+36.1–36.5 ms p99, arrival jitter ≤ 4.3 ms p99, none skipped, with
+`exposure_dynamic_framerate` off. The camera was streaming its privacy
+placeholder at the time. Glass-to-frame (`--glass`) and G1b are not yet
+measured: both need a person at the camera.
 
 ## 8. Sources
 
