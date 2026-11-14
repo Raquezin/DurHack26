@@ -1,12 +1,108 @@
-body { margin: 0; font-family: monospace; background: #111; color: #ddd; }
-main { display: flex; gap: 12px; padding: 12px; }
-#previews { display: flex; flex-direction: column; gap: 12px; }
-figure { margin: 0; }
-img { width: 320px; height: 240px; background: #000; display: block; }
-figcaption { font-size: 12px; color: #888; }
-#log { flex: 1; height: 90vh; overflow-y: auto; }
-.event { padding: 2px 6px; border-bottom: 1px solid #222; font-size: 13px; }
-.event.hazard { color: #ff6666; }
-.event.utterance { color: #88dd88; }
-.event.guidance_text { color: #88bbff; }
+:root {
+  color-scheme: dark;
+  --bg: #0e0f12;
+  --panel: #17191e;
+  --ink: #f3f0e8;
+  --muted: #9b968c;
+  --line: #2a2e36;
+  --next: #e2b657;
+  --drop: #d08072;
+  --live: #8dca8a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", sans-serif;
+}
+
+main {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(8rem, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+#previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+figure {
+  margin: 0;
+  min-width: 0;
+  background: #000;
+  border: 1px solid var(--line);
+}
+
+img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: #000;
+}
+
+img:not([src]) { visibility: hidden; }
+
+figcaption {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.speech {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.3rem 1rem;
+  align-items: baseline;
+  padding: 0.85rem 1.1rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.label, #link {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.label { color: var(--next); }
+
+#link { color: var(--muted); }
+
+body[data-link="live"] #link { color: var(--live); }
+
+.line {
+  margin: 0;
+  grid-column: 1 / -1;
+  font-size: clamp(1.7rem, 3.2vw, 2.8rem);
+  line-height: 1.2;
+}
+
+#log {
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 0.85rem;
+}
+
+.event {
+  padding: 0.32rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.event.hazard { color: #ff8d7a; }
+.event.utterance { color: var(--ink); }
+.event.guidance_text { color: #9ec0ff; }
 .event.geometry { color: #666; }

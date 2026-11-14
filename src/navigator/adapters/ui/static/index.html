@@ -1,18 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Navigator</title>
-<link rel="stylesheet" href="/static/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Navigator</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-<main>
-<section id="previews">
-<figure><img id="camera" alt="camera"><figcaption>camera</figcaption></figure>
-<figure><img id="depth" alt="depth"><figcaption>depth</figcaption></figure>
-</section>
-<section id="log"></section>
-</main>
-<script src="/static/app.js"></script>
+<body data-link="offline">
+  <main>
+    <section id="previews">
+      <figure>
+        <img id="camera" alt="camera" decoding="async">
+        <figcaption>camera</figcaption>
+      </figure>
+      <figure>
+        <img id="depth" alt="depth" decoding="async">
+        <figcaption>depth</figcaption>
+      </figure>
+    </section>
+    <section class="speech">
+      <p class="label" id="speech-label">Waiting</p>
+      <p id="link">offline</p>
+      <p class="line" id="speech-line">No speech yet</p>
+    </section>
+    <section id="log"></section>
+  </main>
+  <script src="/static/app.js"></script>
 </body>
 </html>

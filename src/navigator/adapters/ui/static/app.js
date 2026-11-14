@@ -1,42 +1,107 @@
 const logEl = document.getElementById("log");
-const imgs = {1: document.getElementById("camera"), 2: document.getElementById("depth")};
-const shown = new Set(["hazard", "guidance_text", "utterance", "geometry"]);
+const label = document.getElementById("speech-label");
+const line = document.getElementById("speech-line");
+const link = document.getElementById("link");
+const imgs = {
+  1: document.getElementById("camera"),
+  2: document.getElementById("depth"),
+};
+const seen = {1: -1n, 2: -1n};
+const shown = new Set(["hazard", "guidance_text", "utterance"]);
+
+let requestId = null;
+let guidance = "";
+let stopped = false;
+
+window.addEventListener("pagehide", () => {
+  stopped = true;
+});
 
 function addLine(event) {
-  const line = document.createElement("div");
-  line.className = "event " + event.type;
+  const row = document.createElement("div");
+  row.className = "event " + event.type;
   if (event.type === "hazard") {
-    line.textContent = `hazard ${event.level} ${event.bearing} ${event.distance_m.toFixed(2)}m`;
+    row.textContent = `hazard ${event.level} ${event.bearing} ${Number(event.distance_m).toFixed(2)}m`;
   } else if (event.type === "guidance_text") {
-    line.textContent = `guidance ${event.delta}`;
+    row.textContent = `guidance ${event.delta}`;
   } else if (event.type === "utterance") {
-    line.textContent = `utterance ${event.outcome} "${event.text}" (${event.priority})`;
-  } else {
-    line.textContent = `geometry frame ${event.frame_id} age ${event.age_ms.toFixed(0)}ms`;
+    row.textContent = `utterance ${event.outcome} "${event.text}" (${event.priority})`;
   }
-  logEl.prepend(line);
-  while (logEl.children.length > 100) logEl.lastChild.remove();
+  const top = logEl.firstElementChild;
+  if (top && top.textContent === row.textContent) return;
+  logEl.prepend(row);
+  while (logEl.children.length > 16) logEl.lastChild.remove();
+}
+
+function onGuidance(event) {
+  if (event.request_id !== requestId) {
+    requestId = event.request_id;
+    guidance = "";
+  }
+  guidance += event.delta;
+  label.textContent = "Next";
+  line.textContent = guidance || "…";
+  if (event.final) guidance = "";
+  addLine(event);
+}
+
+function onUtterance(event) {
+  if (event.outcome === "spoken") {
+    label.textContent = "Speaking";
+    line.textContent = event.text;
+  } else if (
+    line.textContent === event.text &&
+    event.outcome !== "dropped_repeat"
+  ) {
+    label.textContent = String(event.outcome).replaceAll("_", " ");
+  }
+  addLine(event);
+}
+
+function showPreview(bytes) {
+  const kind = bytes[0];
+  const img = imgs[kind];
+  if (!img || bytes.length < 9) return;
+  const frameId = new DataView(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength
+  ).getBigUint64(1);
+  if (frameId < seen[kind]) return;
+  seen[kind] = frameId;
+  const blob = new Blob([bytes.slice(9)], {type: "image/jpeg"});
+  if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
+  img.src = URL.createObjectURL(blob);
 }
 
 function connect() {
-  const ws = new WebSocket(`ws://${location.host}/ws`);
+  const scheme = location.protocol === "https:" ? "wss:" : "ws:";
+  const ws = new WebSocket(`${scheme}//${location.host}/ws`);
   ws.binaryType = "arraybuffer";
-  ws.onmessage = async (message) => {
+  ws.onopen = () => {
+    document.body.dataset.link = "live";
+    link.textContent = "live";
+  };
+  ws.onmessage = (message) => {
     if (typeof message.data === "string") {
-      const event = JSON.parse(message.data);
-      if (shown.has(event.type)) addLine(event);
+      let event;
+      try {
+        event = JSON.parse(message.data);
+      } catch (err) {
+        return;
+      }
+      if (event.type === "guidance_text") onGuidance(event);
+      else if (event.type === "utterance") onUtterance(event);
+      else if (shown.has(event.type)) addLine(event);
       return;
     }
-    const bytes = new Uint8Array(message.data);
-    const kind = bytes[0];
-    const jpeg = bytes.slice(9);
-    const blob = new Blob([jpeg], {type: "image/jpeg"});
-    const img = imgs[kind];
-    if (img) {
-      if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
-      img.src = URL.createObjectURL(blob);
-    }
+    showPreview(new Uint8Array(message.data));
   };
-  ws.onclose = () => setTimeout(connect, 1000);
+  ws.onclose = () => {
+    document.body.dataset.link = "offline";
+    link.textContent = "offline";
+    if (!stopped) setTimeout(connect, 400);
+  };
 }
+
 connect();
