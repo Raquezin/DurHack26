@@ -1,17 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Feeds } from "./Feeds.jsx";
+import { Feeds, useFeeds } from "./Feeds.jsx";
+import { Latency } from "./Latency.jsx";
 import { Voice } from "./Voice.jsx";
 import { connect } from "./socket.js";
 import { speechDurationMs } from "./speech.js";
 
+const GUIDANCE_MATCH_MS = 6000;
+const HAZARD_HOLD_MS = 2000;
 const WAITING_TEXT = "Waiting for guidance";
 
 export function App() {
+  const feeds = useFeeds();
   const [text, setText] = useState(WAITING_TEXT);
   const [speaking, setSpeaking] = useState(false);
+  const [label, setLabel] = useState(null);
+  const [hazard, setHazard] = useState(null);
   const [link, setLink] = useState("offline");
+  const [stages, setStages] = useState([]);
   const speechTimer = useRef(null);
+  const hazardTimer = useRef(null);
+  const guidanceTexts = useRef([]);
 
   const stopSpeaking = useCallback(() => {
     clearTimeout(speechTimer.current);
@@ -19,24 +28,52 @@ export function App() {
   }, []);
 
   const startSpeaking = useCallback(
-    (spoken) => {
+    (event) => {
       clearTimeout(speechTimer.current);
-      setText(spoken);
+      setText(event.text);
       setSpeaking(true);
-      speechTimer.current = setTimeout(stopSpeaking, speechDurationMs(spoken));
+      const now = Date.now();
+      guidanceTexts.current = guidanceTexts.current.filter(
+        (entry) => now - entry.at <= GUIDANCE_MATCH_MS,
+      );
+      const source =
+        event.priority === "hazard"
+          ? "hazard"
+          : guidanceTexts.current.some((entry) => entry.text === event.text)
+            ? "gemini"
+            : "local";
+      setLabel({ source, ageMs: Math.round(event.age_ms) });
+      speechTimer.current = setTimeout(
+        stopSpeaking,
+        speechDurationMs(event.text),
+      );
     },
     [stopSpeaking],
   );
 
+  const showHazard = useCallback((event) => {
+    clearTimeout(hazardTimer.current);
+    setHazard(event);
+    hazardTimer.current = setTimeout(() => setHazard(null), HAZARD_HOLD_MS);
+  }, []);
+
+  const onFeedsPreview = feeds.onPreview;
   useEffect(() => {
     return connect({
       onLink: setLink,
+      onPreview: onFeedsPreview,
       onEvent: (event) => {
-        if (event.type === "utterance" && event.outcome === "spoken") startSpeaking(event.text);
-        else if (event.type === "utterance" && event.outcome === "interrupted") stopSpeaking();
+        if (event.type === "utterance" && event.outcome === "spoken")
+          startSpeaking(event);
+        else if (event.type === "utterance" && event.outcome === "interrupted")
+          stopSpeaking();
+        else if (event.type === "timing") setStages(event.stages);
+        else if (event.type === "hazard") showHazard(event);
+        else if (event.type === "guidance_text")
+          guidanceTexts.current.push({ text: event.delta, at: Date.now() });
       },
     });
-  }, [startSpeaking, stopSpeaking]);
+  }, [onFeedsPreview, startSpeaking, stopSpeaking, showHazard]);
 
   useEffect(() => {
     document.body.dataset.link = link;
@@ -44,8 +81,9 @@ export function App() {
 
   return (
     <main>
-      <Feeds />
-      <Voice speaking={speaking} text={text} />
+      <Feeds feeds={feeds} hazard={hazard} link={link} />
+      <Voice speaking={speaking} label={label} text={text} />
+      <Latency stages={stages} />
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import asyncio
 import threading
 
+from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.application.phrase_cache import PhraseCache
 from navigator.domain.events import Outcome, UtteranceEvent
 from navigator.domain.policies import arbitration
@@ -20,6 +21,7 @@ class SpeechArbiter:
         events: EventPublisher,
         clock: Clock,
         loop: asyncio.AbstractEventLoop,
+        trace: LatencyTrace,
         hazard_phrase_cooldown_s: float = 2.0,
         guidance_phrase_cooldown_s: float = 5.0,
     ) -> None:
@@ -29,6 +31,7 @@ class SpeechArbiter:
         self._events = events
         self._clock = clock
         self._loop = loop
+        self._trace = trace
         self._hazard_cooldown_ns = int(hazard_phrase_cooldown_s * 1e9)
         self._guidance_cooldown_ns = int(guidance_phrase_cooldown_s * 1e9)
         self._lock = threading.Lock()
@@ -71,7 +74,7 @@ class SpeechArbiter:
             self._speak_cached(utterance)
             return
         asyncio.run_coroutine_threadsafe(
-            self._stream(utterance, generation), self._loop
+            self._stream(utterance, generation, now), self._loop
         )
 
     def _cooldown_ns(self, utterance: Utterance) -> int:
@@ -84,12 +87,18 @@ class SpeechArbiter:
             self._publish(utterance, Outcome.DROPPED_STALE)
             return
         self._sink.play(self._cache.get(utterance.phrase))
+        self._trace.record(
+            Stage[utterance.priority.name],
+            self._clock.now_ns() - utterance.t_capture_ns,
+        )
         with self._lock:
             self._last_spoken[utterance.phrase] = self._clock.now_ns()
             self._current_started = True
         self._publish(utterance, Outcome.SPOKEN)
 
-    async def _stream(self, utterance: Utterance, generation: int) -> None:
+    async def _stream(
+        self, utterance: Utterance, generation: int, submitted_ns: int
+    ) -> None:
         started = False
         try:
             async for chunk in self._synthesizer.stream(utterance.text):
@@ -97,22 +106,24 @@ class SpeechArbiter:
                     if generation != self._generation:
                         return
                 if not started:
-                    if arbitration.is_stale(
-                        utterance, self._clock.now_ns()
-                    ):
+                    now = self._clock.now_ns()
+                    self._trace.record(Stage.TTS, now - submitted_ns)
+                    if arbitration.is_stale(utterance, now):
                         self._publish(utterance, Outcome.DROPPED_STALE)
                         return
+                    self._trace.record(
+                        Stage[utterance.priority.name],
+                        now - utterance.t_capture_ns,
+                    )
                     started = True
                     with self._lock:
+                        if utterance.phrase is not None:
+                            self._last_spoken[utterance.phrase] = now
                         self._current_started = True
+                    self._sink.play(chunk)
+                    self._publish(utterance, Outcome.SPOKEN)
+                    continue
                 self._sink.play(chunk)
-            if started:
-                with self._lock:
-                    if utterance.phrase is not None:
-                        self._last_spoken[utterance.phrase] = (
-                            self._clock.now_ns()
-                        )
-                self._publish(utterance, Outcome.SPOKEN)
         except Exception:
             pass
         finally:

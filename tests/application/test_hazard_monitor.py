@@ -5,6 +5,7 @@ from navigator.adapters.clock.manual import ManualClock
 from navigator.adapters.speech.tone import ToneSpeechSynthesizer
 from navigator.adapters.ui.collecting import CollectingEventPublisher
 from navigator.application.hazard_monitor import HazardMonitor
+from navigator.application.latency_trace import LatencyTrace
 from navigator.application.phrase_cache import PhraseCache
 from navigator.application.speech_arbiter import SpeechArbiter
 from navigator.domain.events import HazardEvent, Outcome, UtteranceEvent
@@ -49,11 +50,13 @@ async def _rig():
         events=events,
         clock=clock,
         loop=asyncio.get_running_loop(),
+        trace=LatencyTrace(),
     )
     monitor = HazardMonitor(
         arbiter=arbiter,
         events=events,
         clock=clock,
+        trace=LatencyTrace(),
         thresholds=HazardThresholds(),
     )
     return monitor, events, sink

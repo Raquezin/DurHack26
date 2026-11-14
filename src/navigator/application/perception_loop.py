@@ -1,6 +1,7 @@
 import threading
 from collections.abc import Callable
 
+from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.domain.events import GeometryEvent, PreviewEvent, PreviewKind
 from navigator.domain.geometry import Perception
 from navigator.ports.clock import Clock
@@ -17,14 +18,16 @@ class PerceptionLoop:
         board,
         events: EventPublisher,
         clock: Clock,
+        trace: LatencyTrace,
         on_perception: Callable[[Perception], None] | None = None,
-        preview_every: int = 3,
+        preview_every: int = 1,
     ) -> None:
         self._source = source
         self._perception = perception
         self._board = board
         self._events = events
         self._clock = clock
+        self._trace = trace
         self._on_perception = on_perception
         self._preview_every = preview_every
 
@@ -36,7 +39,17 @@ class PerceptionLoop:
             self._preview_every > 0
             and frame.frame_id % self._preview_every == 0
         )
+        started_ns = self._clock.now_ns()
         perception = self._perception.perceive(frame, with_previews)
+        done_ns = self._clock.now_ns()
+        self._trace.record(Stage.FRAME_WAIT, started_ns - frame.t_capture_ns)
+        self._trace.record(
+            Stage.PERCEPTION, perception.t_ready_ns - started_ns
+        )
+        if with_previews:
+            self._trace.record(
+                Stage.PREVIEWS, done_ns - perception.t_ready_ns
+            )
         self._board.put(perception)
         geometry = perception.geometry
         age_ms = (self._clock.now_ns() - geometry.t_capture_ns) / 1_000_000

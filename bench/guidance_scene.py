@@ -12,6 +12,7 @@ from navigator.adapters.audio.wav import WavFileAudioSink
 from navigator.adapters.clock.system import SystemClock
 from navigator.adapters.ui.collecting import CollectingEventPublisher
 from navigator.application.guidance_loop import GuidanceLoop
+from navigator.application.latency_trace import LatencyTrace
 from navigator.application.phrase_cache import PhraseCache
 from navigator.application.scene_board import SceneBoard
 from navigator.application.speech_arbiter import SpeechArbiter
@@ -25,6 +26,7 @@ from navigator.domain.policies.trigger import TriggerSettings
 ROOT = Path(__file__).resolve().parents[1]
 SCENES = ROOT / "fixtures" / "scenes"
 SETTINGS = Settings()
+SETTLE_S = 1.5
 REQUIRED = {
     "gemini": ("GEMINI_API_KEY",),
     "elevenlabs": ("ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID"),
@@ -133,6 +135,7 @@ async def run_scene(args) -> int:
         sink = stack.enter_context(WavFileAudioSink(path=args.out))
         cache = PhraseCache()
         await cache.build(synthesizer)
+        trace = LatencyTrace()
         arbiter = SpeechArbiter(
             sink=sink,
             synthesizer=synthesizer,
@@ -140,6 +143,7 @@ async def run_scene(args) -> int:
             events=events,
             clock=clock,
             loop=asyncio.get_running_loop(),
+            trace=trace,
         )
         board = SceneBoard()
         guidance = GuidanceLoop(
@@ -148,6 +152,7 @@ async def run_scene(args) -> int:
             arbiter=arbiter,
             events=events,
             clock=clock,
+            trace=trace,
             trigger_settings=TriggerSettings(min_interval_s=SETTINGS.trigger_min_interval_s),
             deadline_offset_ns=int(SETTINGS.deadline_offset_ms * 1_000_000),
         )
@@ -159,6 +164,7 @@ async def run_scene(args) -> int:
             if spoken(events):
                 break
             await asyncio.sleep(0.02)
+        await asyncio.sleep(SETTLE_S)
         guidance.stop()
         tasks[1].cancel()
         await asyncio.gather(*tasks, return_exceptions=True)

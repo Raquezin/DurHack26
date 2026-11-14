@@ -6,6 +6,7 @@ import threading
 
 from navigator.application.guidance_loop import GuidanceLoop
 from navigator.application.hazard_monitor import HazardMonitor
+from navigator.application.latency_trace import LatencyTrace
 from navigator.application.perception_loop import PerceptionLoop
 from navigator.application.phrase_cache import PhraseCache
 from navigator.application.scene_board import SceneBoard
@@ -96,6 +97,7 @@ async def run(settings, duration_s, provided=None) -> None:
         await cache.build(built["speech_synthesizer"])
         board = SceneBoard()
         loop = asyncio.get_running_loop()
+        trace = LatencyTrace(window=settings.timing_window)
         arbiter = SpeechArbiter(
             sink=built["audio_sink"],
             synthesizer=built["speech_synthesizer"],
@@ -103,6 +105,7 @@ async def run(settings, duration_s, provided=None) -> None:
             events=built["event_publisher"],
             clock=clock,
             loop=loop,
+            trace=trace,
             hazard_phrase_cooldown_s=settings.hazard_phrase_cooldown_s,
             guidance_phrase_cooldown_s=settings.guidance_phrase_cooldown_s,
         )
@@ -110,6 +113,7 @@ async def run(settings, duration_s, provided=None) -> None:
             arbiter=arbiter,
             events=built["event_publisher"],
             clock=clock,
+            trace=trace,
             thresholds=HazardThresholds(
                 stop_m=settings.stop_m,
                 caution_m=settings.caution_m,
@@ -124,6 +128,7 @@ async def run(settings, duration_s, provided=None) -> None:
             board=board,
             events=built["event_publisher"],
             clock=clock,
+            trace=trace,
             on_perception=monitor.observe,
             preview_every=settings.preview_every,
         )
@@ -133,6 +138,7 @@ async def run(settings, duration_s, provided=None) -> None:
             arbiter=arbiter,
             events=built["event_publisher"],
             clock=clock,
+            trace=trace,
             trigger_settings=TriggerSettings(
                 min_interval_s=settings.trigger_min_interval_s,
                 keepalive_s=settings.trigger_keepalive_s,
@@ -150,6 +156,11 @@ async def run(settings, duration_s, provided=None) -> None:
         )
         gpu_thread.start()
         guidance_task = asyncio.create_task(guidance.run())
+        trace_task = asyncio.create_task(
+            trace.publish_every(
+                built["event_publisher"], settings.timing_interval_s
+            )
+        )
         try:
             if duration_s is not None:
                 await asyncio.sleep(duration_s)
@@ -160,6 +171,9 @@ async def run(settings, duration_s, provided=None) -> None:
             guidance.stop()
             await asyncio.gather(guidance_task, return_exceptions=True)
             gpu_thread.join(timeout=2)
+            trace_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await trace_task
 
 
 def main(argv=None) -> None:

@@ -14,6 +14,42 @@ def make_jpeg(width=64, height=48):
     return out.getvalue()
 
 
+def make_h264(width=64, height=48, frames=30) -> list[bytes]:
+    import av
+    import numpy as np
+    from fractions import Fraction
+
+    buffer = io.BytesIO()
+    container = av.open(buffer, mode="w", format="h264")
+    stream = container.add_stream(
+        "libx264",
+        rate=30,
+        options={
+            "preset": "veryfast",
+            "tune": "zerolatency",
+            "profile": "baseline",
+            "g": str(frames),
+        },
+    )
+    stream.width = width
+    stream.height = height
+    stream.pix_fmt = "yuv420p"
+    stream.time_base = Fraction(1, 30)
+    units = []
+    for index in range(frames):
+        array = np.full((height, width, 3), index * 8 % 256, dtype=np.uint8)
+        array[:, index % width : index % width + 4] = (255, 255, 255)
+        frame = av.VideoFrame.from_ndarray(array, format="rgb24")
+        frame.pts = index
+        frame.time_base = Fraction(1, 30)
+        for packet in stream.encode(frame):
+            units.append(bytes(packet))
+    for packet in stream.encode():
+        units.append(bytes(packet))
+    container.close()
+    return units
+
+
 class FakePhone:
     def __init__(self) -> None:
         self.loop = asyncio.new_event_loop()
@@ -50,17 +86,22 @@ class FakePhone:
                 self.texts.append(message.data)
 
     def send_frame(self, jpeg: bytes) -> None:
+        self.send_raw(bytes([1]) + jpeg)
+
+    def send_raw(self, data: bytes) -> None:
         async def send():
-            await self._ws.send_bytes(bytes([1]) + jpeg)
+            await self._ws.send_bytes(data)
 
         asyncio.run_coroutine_threadsafe(send(), self.loop).result(
             timeout=10
         )
 
-    def start_streaming(self, jpeg: bytes, interval_s=0.05) -> None:
+    def start_streaming(self, messages: list[bytes], interval_s=0.05) -> None:
         async def stream():
+            index = 0
             while True:
-                await self._ws.send_bytes(bytes([1]) + jpeg)
+                await self._ws.send_bytes(messages[index % len(messages)])
+                index += 1
                 await asyncio.sleep(interval_s)
 
         self._stream_task = asyncio.run_coroutine_threadsafe(

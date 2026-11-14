@@ -1,3 +1,16 @@
+const LONG_SIDE = 504;
+const JPEG_QUALITY = 0.7;
+const THIN_LONG_SIDE = 384;
+const THIN_JPEG_QUALITY = 0.5;
+const VIDEO_BITRATE = 700000;
+const VIDEO_CODECS = ["avc1.42001f", "avc1.42e01f"];
+const KEYFRAME_EVERY = 60;
+const ENCODER_BACKLOG = 15;
+const QUEUE_BUDGET_MS = 100;
+const INITIAL_WINDOW = 2;
+const KIND_JPEG = 1;
+const KIND_PCM = 2;
+const KIND_H264 = 3;
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx2d = canvas.getContext("2d");
@@ -8,11 +21,22 @@ const audioEl = document.getElementById("audio");
 const soundButton = document.getElementById("sound");
 
 let ws = null;
-let audioCtx = null;
-let nextTime = 0;
-let playing = [];
 let wakeLock = null;
 let sentFrames = 0;
+let sentAt = [];
+let minRtt = null;
+let sendWindow = INITIAL_WINDOW;
+let encoder = null;
+let thinLink = false;
+let skipped = 0;
+let encoderCodec = "";
+let encoderSize = "";
+let needKey = true;
+let fed = 0;
+let emitted = 0;
+let encodingJpeg = false;
+let suspended = false;
+let lastFrameCall = 0;
 let lastStats = 0;
 let clips = 0;
 let lastError = "";
@@ -25,87 +49,153 @@ function report(message) {
 window.addEventListener("error", (event) => report(`error ${event.message}`));
 window.addEventListener("unhandledrejection", (event) => report(`rejection ${event.reason}`));
 
-function unlockAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (navigator.audioSession) {
-    try { navigator.audioSession.type = "playback"; } catch (e) {}
-  }
-  audioCtx.resume();
-  const beep = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  gain.gain.value = 0.2;
-  beep.frequency.value = 880;
-  beep.connect(gain).connect(audioCtx.destination);
-  beep.start();
-  beep.stop(audioCtx.currentTime + 0.2);
-}
-
-function schedulePcm(data) {
-  const int16 = new Int16Array(data.slice(1, data.byteLength - ((data.byteLength - 1) % 2)));
-  if (audioCtx.state !== "running") audioCtx.resume();
-  const floats = new Float32Array(int16.length);
-  for (let i = 0; i < int16.length; i++) floats[i] = int16[i] / 32768;
-  const buffer = audioCtx.createBuffer(1, floats.length, 24000);
-  buffer.copyToChannel(floats, 0);
-  const source = audioCtx.createBufferSource();
-  source.buffer = buffer;
-  source.connect(audioCtx.destination);
-  nextTime = Math.max(audioCtx.currentTime, nextTime);
-  source.start(nextTime);
-  nextTime += buffer.duration;
-  playing.push(source);
-  source.onended = () => {
-    playing = playing.filter((s) => s !== source);
-  };
-}
-
-function interruptAudio() {
-  for (const source of playing) {
-    try { source.stop(); } catch (e) {}
-  }
-  playing = [];
-  nextTime = 0;
-}
-
 function connect() {
+  sentAt = [];
+  minRtt = null;
+  sendWindow = INITIAL_WINDOW;
+  needKey = true;
+  suspended = false;
   const scheme = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(`${scheme}//${location.host}/ws`);
+  const socket = ws = new WebSocket(`${scheme}//${location.host}/ws`);
   ws.binaryType = "arraybuffer";
   ws.onmessage = (message) => {
     if (typeof message.data === "string") {
       const payload = JSON.parse(message.data);
-      if (payload.type === "pong") {
-        rttEl.textContent = `rtt ${Math.round(performance.now() - payload.t)} ms`;
+      if (payload.type === "ack" || payload.type === "jpeg") {
+        const full = sentAt.length >= sendWindow;
+        const sent = sentAt.shift();
+        if (payload.type === "jpeg") stopEncoder("server rejected video");
+        if (sent === undefined) return;
+        const rtt = performance.now() - sent;
+        minRtt = minRtt === null ? rtt : Math.min(minRtt, rtt);
+        if (rtt > minRtt + QUEUE_BUDGET_MS) sendWindow = Math.max(1, sendWindow - 1);
+        else if (full) sendWindow++;
+        rttEl.textContent = `rtt ${Math.round(rtt)} ms`;
       } else if (payload.type === "interrupt") {
         interruptAudio();
       }
       return;
     }
     const bytes = new Uint8Array(message.data);
-    if (bytes[0] !== 2) return;
+    if (bytes[0] !== KIND_PCM) return;
     clips++;
     if (!audioCtx) return report("pcm received before audio unlocked");
     try { schedulePcm(message.data); } catch (e) { report(`pcm ${e}`); }
   };
-  ws.onclose = () => setTimeout(connect, 1000);
+  ws.onclose = () => {
+    if (ws === socket && !suspended) setTimeout(connect, 1000);
+  };
+}
+
+function frameSize() {
+  const longSide = thinLink && !encoder ? THIN_LONG_SIDE : LONG_SIDE;
+  const scale = Math.min(1, longSide / Math.max(video.videoWidth, video.videoHeight));
+  return [2 * Math.round(video.videoWidth * scale / 2), 2 * Math.round(video.videoHeight * scale / 2)];
+}
+
+function transmit(message) {
+  ws.send(message);
+  sentAt.push(performance.now());
+  sentFrames++;
 }
 
 function sendFrame() {
-  if (!ws || ws.readyState !== 1 || ws.bufferedAmount !== 0) return;
-  if (!video.videoWidth) return;
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  ctx2d.drawImage(video, 0, 0);
-  canvas.toBlob((blob) => {
-    if (!blob || !ws || ws.readyState !== 1 || ws.bufferedAmount !== 0) return;
-    blob.arrayBuffer().then((buffer) => {
-      const head = new Uint8Array(1 + buffer.byteLength);
-      head[0] = 1;
-      head.set(new Uint8Array(buffer), 1);
-      ws.send(head);
-      sentFrames++;
-    });
-  }, "image/jpeg", 0.7);
+  lastFrameCall = performance.now();
+  if (!ws || ws.readyState !== 1 || !video.videoWidth || encodingJpeg) return;
+  if (sentAt.length >= sendWindow) {
+    skipped++;
+    return;
+  }
+  const [width, height] = frameSize();
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  ctx2d.drawImage(video, 0, 0, width, height);
+  if (encoder && thinLink) encodeVideo(width, height);
+  else encodeJpeg();
+}
+
+function encodeJpeg() {
+  encodingJpeg = true;
+  setTimeout(() => { encodingJpeg = false; }, 2000);
+  const socket = ws;
+  canvas.toBlob(async (blob) => {
+    try {
+      if (!blob || socket !== ws || socket.readyState !== 1) return;
+      const message = new Uint8Array(1 + blob.size);
+      message[0] = KIND_JPEG;
+      message.set(new Uint8Array(await blob.arrayBuffer()), 1);
+      if (socket === ws && socket.readyState === 1) transmit(message);
+    } finally {
+      encodingJpeg = false;
+    }
+  }, "image/jpeg", thinLink ? THIN_JPEG_QUALITY : JPEG_QUALITY);
+}
+
+function encoderConfig(codec, width, height) {
+  return {codec, width, height, bitrate: VIDEO_BITRATE, framerate: 30, latencyMode: "realtime", avc: {format: "annexb"}};
+}
+
+async function startEncoder() {
+  if (!("VideoEncoder" in window)) return;
+  const [width, height] = frameSize();
+  for (const codec of VIDEO_CODECS) {
+    const config = encoderConfig(codec, width, height);
+    try {
+      if (!(await VideoEncoder.isConfigSupported(config)).supported) continue;
+      const candidate = new VideoEncoder({output: sendChunk, error: (e) => stopEncoder(`encoder ${e.message}`)});
+      candidate.configure(config);
+      encoder = candidate;
+      encoderCodec = codec;
+      encoderSize = `${width}x${height}`;
+      return;
+    } catch (e) {
+      report(`video ${codec} ${e}`);
+    }
+  }
+}
+
+function stopEncoder(reason) {
+  report(reason);
+  const stopped = encoder;
+  encoder = null;
+  if (stopped && stopped.state !== "closed") {
+    try { stopped.close(); } catch (e) {}
+  }
+}
+
+function encodeVideo(width, height) {
+  const size = `${width}x${height}`;
+  try {
+    if (size !== encoderSize) {
+      encoder.configure(encoderConfig(encoderCodec, width, height));
+      encoderSize = size;
+      needKey = true;
+      fed = 0;
+      emitted = 0;
+    }
+    const frame = new VideoFrame(canvas, {timestamp: Math.round(performance.now() * 1000)});
+    encoder.encode(frame, {keyFrame: needKey || fed % KEYFRAME_EVERY === 0});
+    frame.close();
+  } catch (e) {
+    return stopEncoder(`encode ${e}`);
+  }
+  needKey = false;
+  fed++;
+  if (fed - emitted > ENCODER_BACKLOG) stopEncoder("encoder stalled");
+}
+
+function sendChunk(chunk) {
+  emitted++;
+  if (!ws || ws.readyState !== 1) {
+    needKey = true;
+    return;
+  }
+  const message = new Uint8Array(1 + chunk.byteLength);
+  message[0] = KIND_H264;
+  chunk.copyTo(message.subarray(1));
+  transmit(message);
 }
 
 function frameLoop() {
@@ -124,26 +214,30 @@ async function requestWakeLock() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") requestWakeLock();
-});
-
-setInterval(() => {
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({type: "ping", t: performance.now()}));
+  if (document.visibilityState === "visible") {
+    requestWakeLock();
+    if (!ws || ws.readyState >= 2) connect();
+  } else {
+    suspended = true;
+    if (ws && ws.readyState === 1) ws.close();
   }
-}, 1000);
+});
 
 setInterval(() => {
   const now = performance.now();
   const fps = sentFrames * 1000 / (now - lastStats || 1);
-  fpsEl.textContent = `fps ${fps.toFixed(0)}`;
+  if (skipped > sentFrames) thinLink = true;
+  const mode = !thinLink ? "jpeg" : encoder ? "h264" : "jpeg-small";
+  fpsEl.textContent = `fps ${fps.toFixed(0)} ${mode}`;
   const audioState = audioCtx ? audioCtx.state : "none";
   audioEl.textContent = `audio ${audioState} clips ${clips}`;
+  if (document.visibilityState === "visible" && video.videoWidth && ws && ws.readyState === 1 && now - lastFrameCall > 3000) frameLoop();
   if (ws && ws.readyState === 1) {
     const rtt = parseFloat(rttEl.textContent.split(" ")[1]) || 0;
-    ws.send(JSON.stringify({type: "stats", rtt_ms: rtt, fps, audio: audioState, clips, error: lastError}));
+    ws.send(JSON.stringify({type: "stats", rtt_ms: rtt, fps, audio: audioState, clips, video: mode, error: lastError}));
   }
   sentFrames = 0;
+  skipped = 0;
   lastStats = now;
 }, 2000);
 
@@ -154,7 +248,12 @@ startButton.onclick = async () => {
     audio: false,
   });
   video.srcObject = stream;
+  const track = stream.getVideoTracks()[0];
+  for (const event of ["mute", "unmute", "ended"]) {
+    track.addEventListener(event, () => report(`camera ${event}`));
+  }
   await video.play();
+  startEncoder();
   await requestWakeLock();
   connect();
   frameLoop();

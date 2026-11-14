@@ -4,8 +4,8 @@ from torchvision.io import encode_jpeg
 
 from navigator.adapters.perception.palette import DEPTH_RANGE_M, depth_palette
 
-PREVIEW_LONG_SIDE = 512
-JPEG_QUALITY = 80
+PREVIEW_LONG_SIDE = 384
+JPEG_QUALITY = 60
 
 
 class PreviewEncoder:

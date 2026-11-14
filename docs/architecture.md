@@ -72,6 +72,10 @@ and everyone else sees fifteen numbers and two JPEGs.
 `SceneBoard` is the one shared in-memory structure: a thread-safe holder of
 the newest perception result. Writers overwrite; readers take the latest.
 
+`LatencyTrace` is the one shared recorder: each service records how long its
+stage took, and the trace publishes per-stage p50, p95 and p99 as a `timing`
+event once a second ([latency-budget.md](latency-budget.md), section 8).
+
 ## 5. Data flow
 
 ```
@@ -119,7 +123,7 @@ src/navigator/
                    phrases.py  events.py  policies/
   ports/           one module per port
   application/     perception_loop.py  hazard_monitor.py  guidance_loop.py
-                   speech_arbiter.py  scene_board.py
+                   speech_arbiter.py  scene_board.py  latency_trace.py
   adapters/
     camera/        webcam, replay, fake
     perception/    gpu pipeline (backends, kernels), replay, fake
@@ -188,9 +192,10 @@ for directories and files).
 
 `phone.link.PhoneLink(host, port)` is the one connection to an iPhone browser
 (async context manager, built once when either `phone` adapter is selected
-and passed to both as `link`). It serves the capture page; frames go up and
-speech comes down over one WebSocket, through a Cloudflare tunnel to port
-8001.
+and passed to both as `link`). It serves the capture page; frames go up
+(JPEG, or H.264 on a thin link) and speech comes down over one WebSocket,
+through a Cloudflare tunnel to port 8001. The pacing of this link and of the
+viewer link is in optimization.md, section 6.
 
 ## 9. Rules
 

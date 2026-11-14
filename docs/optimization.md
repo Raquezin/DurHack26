@@ -192,6 +192,39 @@ not attention.
 - **Hazard rule in the GPU thread.** The decision runs immediately after
   the 15 floats arrive, with no thread hop.
 
+### Phone and viewer links
+
+Both WebSockets are paced end to end: the receiver acknowledges every frame
+and the sender keeps a window of unacknowledged frames, one larger when the
+window was full and the acknowledgement came within 100 ms of the fastest
+seen, one smaller when it came later. A sender with a full window skips the
+frame (phone) or keeps only the newest preview (viewer).
+
+The phone sends 504 px JPEG at quality 0.7. When it skips more frames than
+it sends in a 2 s window it switches for the rest of the session to H.264
+(WebCodecs, Annex B, 0.7 Mbit/s, decoded with PyAV in 0.55 ms), or to 384 px
+JPEG at quality 0.5 where the browser has no encoder or the server rejects
+the stream. Previews are 384 px at quality 60; Gemini gets the same picture,
+and its answers at that size are not yet evaluated.
+
+Measured with the phone page in headless Chromium playing the recorded walk
+at 30 fps through a local proxy, before (window fixed at 2) and after:
+
+| Link | Before | After |
+| --- | --- | --- |
+| Uplink 1 Mbit/s, 50 ms round trip | 10 fps, 72–430 ms to ack | 28 fps H.264, 70–81 ms |
+| Same, no encoder in the browser | 4–6 fps in busy scenes | 7–11 fps in busy scenes |
+| Uplink unthrottled, 150 ms round trip | 12 fps | 30 fps JPEG |
+| Cloudflare tunnel both ways | 30 fps, 23 ms | 30 fps, 21 ms |
+| Viewer downlink 2 Mbit/s | 4 pictures/s, 15.8 s behind and growing | 10 pictures/s, 0.15 s behind (p95 0.25 s) |
+| Viewer, unthrottled | 9.5 Mbit/s per viewer | 4.9 Mbit/s per viewer |
+
+Zone distance error against the original frames, zones under 2.5 m, 150
+frames: 504 px JPEG median 0.03 m (p95 0.10 m), H.264 0.06 m (p95 0.27 m),
+384 px JPEG 0.07 m (p95 0.21 m). The iPhone on the earlier page sent 11.5
+fps at 144 ms to ack (p50, 100 s), about 1.3 Mbit/s. The new page is not
+yet measured on the phone; its mode shows next to the fps on the phone page.
+
 ## 7. Cloud path
 
 | Technique | Saves | Where |

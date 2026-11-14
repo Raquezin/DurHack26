@@ -64,9 +64,9 @@ Camera → depth → zone distances → rule → cached clip. No network.
 | Upload + fused preprocess | 2 | 0.3 with zone reduction | ours, G1: perceive − forward at p50 |
 | Depth network | 20 | 15.7 p50, 16.0 p99 | ours, G1 at long side 504 ([models.md](models.md)) |
 | Zone reduction + result download | 2 | included above | ours, G1 |
-| Hazard rule + speech arbiter | 1 | < 1 | [E] |
+| Hazard rule + speech arbiter | 1 | 0.16 p50, 0.79 p99 | ours, stage `hazard_decision` (section 8), 99 decisions |
 | Cached clip → DAC | 25 | 10–25 | [E] small PortAudio buffer |
-| Scheduling jitter | 30 | — | [E] |
+| Scheduling jitter | 30 | 0.7 p50, 1.2 p99 before perception; output side unmeasured | ours, stage `frame_wait` (section 8); [E] for the rest |
 | **Total** | **150** | **≈ 60–140** | |
 
 The other 150 ms under the hard bound is margin for thermal throttling on a
@@ -111,6 +111,28 @@ Notes:
   benchmark, thinking time included). Thinking must be pinned to its minimum.
 - The phrase cache ([models.md](models.md)) removes the TTS term whenever the
   model answers with a phrase from the fixed catalogue.
+
+What moves the cloud term (ours, 14 November, development network, a new
+walk frame for every request, ms from request to answer):
+
+| Request | n | First token p50 | Whole answer p50 | Range |
+| --- | --- | --- | --- | --- |
+| Image at long side 512, as shipped | 6 | 1149 | 1223 | 1053–1702 |
+| Image at long side 256 | 8 | 1119 | 1176 | 787–1977 |
+| 512, output constrained to phrase names | 5 | 1535 | 1616 | 1317–3218 |
+| 256, output constrained to phrase names | 5 | 1190 | 1256 | 1041–2138 |
+| Zone distances only, no image | 6 | 479 | 546 | 402–1094 |
+
+- The image is the cost: about 265 input tokens at any size, and roughly
+  0.7 s. A smaller JPEG and constrained output change nothing we can see;
+  answers are already three or four tokens and complete about 50 ms after
+  the first one. The samples are few because the key's free tier stopped
+  the run (500 requests a day).
+- So no payload change brings a request with an image under the 700 ms
+  bound, and a request without one only sees what local steering already
+  uses. Local steering with cached clips is the guidance path that meets
+  the 1.0 s target (16 ms p50, section 8); a Gemini answer is an addition
+  that arrives about 1.2–1.6 s after capture when the scene still matches.
 
 ## 5. Alert distance
 
@@ -176,8 +198,10 @@ means changing the model, resolution or technique, not relaxing the bound.
 - **One clock.** Every frame is stamped with `time.monotonic_ns()` at capture.
   The stamp travels with every derived artefact ([contracts.md](contracts.md)),
   so any stage can compute its age.
-- **Stage timestamps.** Each stage appends its completion time to the trace.
-  The UI shows per-stage p50 / p95 / p99 over a sliding window.
+- **Stage timestamps.** Every service records its stage durations into one
+  `LatencyTrace`, which publishes a `timing` event once a second. The UI
+  shows per-stage p50 / p95 / p99 over a sliding window of the last 600
+  samples, next to the bound, in red when over it.
 - **GPU timings** use synchronised measurements (CUDA events or an explicit
   synchronise) after warm-up; wall-clock around an asynchronous GPU call
   measures nothing.
@@ -191,6 +215,66 @@ means changing the model, resolution or technique, not relaxing the bound.
   and is subtracted from the deadlines the software enforces.
 - **Venue network.** Cloud figures are re-measured on the venue network at
   the start, and on a phone hotspot as fallback.
+
+### Traced stages
+
+| Stage | From → to | Recorded by | Bound |
+| --- | --- | --- | --- |
+| `frame_wait` | frame arrival → perception starts | `PerceptionLoop` | — |
+| `perception` | perception starts → geometry ready | `PerceptionLoop` | 25 ms p99 |
+| `previews` | geometry ready → previews encoded, preview frames only | `PerceptionLoop` | 3 ms p99 |
+| `hazard_decision` | geometry ready → alert handed to the arbiter, which plays a cached clip in the same call | `HazardMonitor` | 30 ms p99 |
+| `hazard` | frame arrival → first hazard audio handed to the sink | `SpeechArbiter` | 150 ms p95 |
+| `reasoner` | request sent → first instruction back | `GuidanceLoop` | 700 ms p50 |
+| `tts` | utterance submitted → first streamed chunk | `SpeechArbiter` | 350 ms p95 |
+| `guidance` | frame arrival → first guidance audio handed to the sink | `SpeechArbiter` | 1.0 s p50 |
+
+- `guidance` counts everything heard as guidance, local steering and cloud
+  answers together. For a cloud answer alone, add the age of the geometry at
+  the request (frame arrival → geometry published, below) to `reasoner`, and
+  `tts` when the answer is not a catalogue phrase.
+- `reasoner` ends at the first complete sentence, not the first token, and a
+  request that times out leaves no sample. `tts` is recorded even when the
+  utterance is then dropped as stale.
+- `hazard_decision` includes the preview encode on preview frames, because
+  the perception port returns previews together with the geometry.
+- For figures over a whole run instead of the sliding window:
+  `--set timing_window=20000 --set timing_interval_s=60`. The last `timing`
+  event is published at shutdown and covers the run.
+
+Measured with the trace (ours, RTX 5070 Ti Laptop, p50 / p95 / p99 in ms):
+
+| Stage | Webcam device, 10 minutes, cloud fakes | Recorded walk looped for 150 s, real Gemini and ElevenLabs |
+| --- | --- | --- |
+| `frame_wait` | 0.69 / 0.89 / 1.16 | 0.19 / 0.36 / 0.42 |
+| `perception` | 14.99 / 15.45 / 15.66 | 15.32 / 15.90 / 16.25 |
+| `previews` | 0.51 / 0.65 / 0.69 | 0.46 / 0.56 / 0.59 |
+| `hazard_decision` | one alert | 0.16 / 0.73 / 0.79 |
+| `hazard` | one alert, 16.2 | 15.91 / 16.37 / 22.10 |
+| `reasoner` | fake | 784 / 941 / 1018 |
+| `tts` | fake | no samples: every answer was a catalogue phrase |
+| `guidance` | none spoken | 16.3 / 812 / 816 |
+
+- **Ten-minute run:** 17 779 frames, none skipped. The laptop webcam was
+  shuttered and delivered its "camera off" placeholder, so this times the
+  pipeline at 30 fps on a still image, not a real scene. Perception
+  is 15.66 ms p99 against the 25 ms bound. Frame arrival → geometry published
+  is 15.8–16.0 ms p50 and 16.7–17.1 ms p99 in every one of the ten minutes,
+  so there is no drift; the GPU went from 41 °C to 47 °C.
+- **Looped walk:** 43 hazard clips and 28 guidance clips spoken; Gemini
+  returned 17 answers that still matched the scene. The walk is 10.7 s
+  long, so Gemini saw each image many times, and it is faster on an image
+  it has seen ([models.md](models.md), G2): 784 ms is flattering and does
+  not replace the G2 result. Development network, not the venue.
+- Not covered by the trace: sensor to frame arrival, and sink to ear. Both
+  need the glass-to-ear test.
+- **Cloud failure drills** on the recorded walk, real cloud adapters
+  configured. Gemini refusing every request (quota, HTTP 429), 60 s: 17
+  hazard clips at ≤ 17 ms and 11 local directions spoken, nothing from the
+  cloud, no crash. Started with no network at all (empty network
+  namespace, phrase cache already on disk), 45 s: 12 hazard clips at
+  ≤ 20 ms and 9 local directions. Not yet drilled: the network dropping in
+  the middle of a run.
 
 ## 9. Sources
 

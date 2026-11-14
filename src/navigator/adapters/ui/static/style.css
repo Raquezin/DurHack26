@@ -29,7 +29,7 @@ html, body, #root {
 main {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto 1fr auto;
   gap: 0.75rem;
   padding: 0.75rem;
 }
@@ -40,28 +40,70 @@ main {
   gap: 0.75rem;
 }
 
+.feeds { transition: opacity 0.4s; }
+
+body[data-link="offline"] .feeds { opacity: 0.45; }
+
 figure {
   margin: 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-img {
-  display: block;
-  width: 100%;
+.picture {
+  container-type: size;
+  display: grid;
+  place-items: center;
   aspect-ratio: 4 / 3;
-  object-fit: contain;
   background: #000;
   border-radius: 12px;
+  overflow: hidden;
+}
+
+.picture .frame {
+  position: relative;
+  width: min(100cqw, calc(100cqh * var(--ratio, 1.3333)));
+  aspect-ratio: var(--ratio, 4 / 3);
+}
+
+.picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 img:not([src]) { visibility: hidden; }
 
 figcaption {
+  display: flex;
+  justify-content: space-between;
   padding: 0.5rem 0.25rem;
   font-size: 0.85rem;
   font-style: italic;
   color: var(--ink);
 }
+
+figcaption .link { color: var(--muted); }
+
+figcaption .link[data-state="offline"] { color: var(--stop); }
+
+.hazard {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  margin: 0;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+
+.hazard[data-level="stop"] { color: var(--stop); }
+
+.hazard[data-level="caution"] { color: var(--caution); }
 
 .voice {
   min-height: 0;
@@ -73,6 +115,16 @@ figcaption {
 }
 
 .voice canvas { flex: none; }
+
+.source {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.source[data-source="hazard"] { color: var(--stop); }
 
 .text {
   margin: 0;
@@ -87,3 +139,37 @@ figcaption {
 }
 
 .voice[data-state="speaking"] .text { opacity: 1; }
+
+.latency {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0;
+  padding: 0.4rem 0.25rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.latency .stage {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0 0.9rem;
+}
+
+.latency .stage + .stage { border-left: 1px solid var(--line); }
+
+.latency .stage-name {
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+
+.latency .percentile { display: flex; gap: 0.3rem; }
+
+.latency .value { color: var(--ink); }
+
+.latency .value[data-over="true"] { color: var(--stop); }
+
+.latency .bound { color: var(--muted); }

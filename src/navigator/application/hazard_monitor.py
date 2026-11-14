@@ -1,3 +1,4 @@
+from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.domain.events import HazardEvent
 from navigator.domain.geometry import Perception
 from navigator.domain.hazard import Bearing, HazardLevel
@@ -26,12 +27,14 @@ class HazardMonitor:
         arbiter,
         events: EventPublisher,
         clock: Clock,
+        trace: LatencyTrace,
         thresholds: HazardThresholds,
         deadline_offset_ns: int = 0,
     ) -> None:
         self._arbiter = arbiter
         self._events = events
         self._clock = clock
+        self._trace = trace
         self._thresholds = thresholds
         self._offset_ns = deadline_offset_ns
         self._state = AlertState()
@@ -65,4 +68,8 @@ class HazardMonitor:
                 + _HAZARD_DEADLINE_NS
                 - self._offset_ns,
             )
+        )
+        self._trace.record(
+            Stage.HAZARD_DECISION,
+            self._clock.now_ns() - perception.t_ready_ns,
         )

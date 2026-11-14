@@ -6,6 +6,7 @@ from navigator.adapters.reasoner.scripted import ScriptedSceneReasoner
 from navigator.adapters.speech.tone import ToneSpeechSynthesizer
 from navigator.adapters.ui.collecting import CollectingEventPublisher
 from navigator.application.guidance_loop import GuidanceLoop
+from navigator.application.latency_trace import LatencyTrace
 from navigator.application.phrase_cache import PhraseCache
 from navigator.application.scene_board import SceneBoard
 from navigator.application.speech_arbiter import SpeechArbiter
@@ -78,6 +79,7 @@ def _loop(reasoner, clock, arbiter, events, settings, offset_ns=0):
         arbiter=arbiter,
         events=events,
         clock=clock,
+        trace=LatencyTrace(),
         trigger_settings=settings,
         deadline_offset_ns=offset_ns,
     )
@@ -105,6 +107,7 @@ async def _rig(delay_s=0.0):
         events=events,
         clock=clock,
         loop=asyncio.get_running_loop(),
+        trace=LatencyTrace(),
     )
     reasoner = ScriptedSceneReasoner(
         text="Keep going straight.", phrase=PhraseId.GO_STRAIGHT, delay_s=delay_s

@@ -45,10 +45,12 @@ class Settings:
     guidance_max_age_s: float = 5.0
     steering_look_m: float = 3.0
     deadline_offset_ms: float = 0.0
-    preview_every: int = 3
+    preview_every: int = 1
     hazard_phrase_cooldown_s: float = 2.0
     guidance_phrase_cooldown_s: float = 5.0
     phrase_cache_dir: Path = Path("out/phrase_cache")
+    timing_window: int = 600
+    timing_interval_s: float = 1.0
 
 
 PRESETS = {

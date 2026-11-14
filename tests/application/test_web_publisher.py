@@ -72,6 +72,53 @@ async def test_ws_receives_json_and_binary_preview():
         await publisher.__aexit__(None, None, None)
 
 
+async def test_previews_wait_for_acks_and_keep_the_newest():
+    publisher, port = await _serve()
+    try:
+        async with ClientSession() as session:
+            async with session.ws_connect(
+                f"http://127.0.0.1:{port}/ws"
+            ) as ws:
+                await asyncio.sleep(0.05)
+
+                def preview(frame_id):
+                    return PreviewEvent(
+                        kind=PreviewKind.CAMERA,
+                        frame_id=frame_id,
+                        jpeg=b"jpeg",
+                    )
+
+                for frame_id in (1, 2):
+                    publisher.publish(preview(frame_id))
+                    message = await asyncio.wait_for(ws.receive(), 5)
+                    assert message.type == WSMsgType.BINARY
+                    assert int.from_bytes(message.data[1:9], "big") == frame_id
+                for frame_id in (3, 4, 5):
+                    publisher.publish(preview(frame_id))
+                    await asyncio.sleep(0.05)
+                publisher.publish(
+                    GeometryEvent(
+                        frame_id=5,
+                        distances_m=(1.0,),
+                        valid=(True,),
+                        age_ms=1.0,
+                    )
+                )
+                message = await asyncio.wait_for(ws.receive(), 5)
+                assert message.type == WSMsgType.TEXT
+                assert json.loads(message.data)["type"] == "geometry"
+                with pytest.raises(TimeoutError):
+                    await asyncio.wait_for(ws.receive(), 0.3)
+                await ws.send_str("ack")
+                message = await asyncio.wait_for(ws.receive(), 5)
+                assert message.type == WSMsgType.BINARY
+                assert int.from_bytes(message.data[1:9], "big") == 5
+                with pytest.raises(TimeoutError):
+                    await asyncio.wait_for(ws.receive(), 0.3)
+    finally:
+        await publisher.__aexit__(None, None, None)
+
+
 async def test_publish_without_clients_does_not_block():
     publisher, _ = await _serve()
     try:

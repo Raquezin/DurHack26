@@ -37,3 +37,14 @@ def test_all_fakes_run_prints_event_sequence():
     utterances = [e for e in events if e["type"] == "utterance"]
     spoken = [u for u in utterances if u["outcome"] == "spoken"]
     assert spoken
+    timings = [e for e in events if e["type"] == "timing"]
+    assert timings
+    last_names = {s["name"] for s in timings[-1]["stages"]}
+    assert {
+        "frame_wait",
+        "perception",
+        "hazard_decision",
+        "hazard",
+    } <= last_names
+    for stage in timings[-1]["stages"]:
+        assert stage["p50_ms"] <= stage["p95_ms"] <= stage["p99_ms"]

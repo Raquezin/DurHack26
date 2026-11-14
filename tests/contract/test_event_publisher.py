@@ -10,6 +10,8 @@ from navigator.domain.events import (
     Outcome,
     PreviewEvent,
     PreviewKind,
+    StageTiming,
+    TimingEvent,
     UtteranceEvent,
 )
 from navigator.domain.speech import Priority
@@ -56,6 +58,35 @@ def test_events_reach_observer(factory):
         assert payload["type"] == "utterance"
         assert payload["outcome"] == "spoken"
         assert payload["priority"] == "hazard"
+
+
+@pytest.mark.parametrize("factory", FACTORIES)
+def test_timing_event_reaches_observer(factory):
+    publisher, stream = factory()
+    publisher.publish(
+        TimingEvent(
+            stages=(
+                StageTiming(
+                    name="perception", p50_ms=1.0, p95_ms=2.0, p99_ms=3.0
+                ),
+            )
+        )
+    )
+    if stream is None:
+        assert len(publisher.events) == 1
+    else:
+        (line,) = stream.getvalue().strip().splitlines()
+        assert json.loads(line) == {
+            "type": "timing",
+            "stages": [
+                {
+                    "name": "perception",
+                    "p50_ms": 1.0,
+                    "p95_ms": 2.0,
+                    "p99_ms": 3.0,
+                }
+            ],
+        }
 
 
 @pytest.mark.parametrize("factory", FACTORIES)

@@ -2,6 +2,7 @@ import asyncio
 from contextlib import aclosing, suppress
 from dataclasses import replace
 
+from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.application.scene_board import SceneBoard
 from navigator.domain.events import GuidanceTextEvent
 from navigator.domain.geometry import Perception, SceneGeometry
@@ -36,6 +37,7 @@ class GuidanceLoop:
         arbiter,
         events: EventPublisher,
         clock: Clock,
+        trace: LatencyTrace,
         trigger_settings: TriggerSettings,
         steering_settings: SteeringSettings | None = None,
         deadline_offset_ns: int = 0,
@@ -45,6 +47,7 @@ class GuidanceLoop:
         self._arbiter = arbiter
         self._events = events
         self._clock = clock
+        self._trace = trace
         self._settings = trigger_settings
         self._steering = steering_settings or SteeringSettings()
         self._offset_ns = deadline_offset_ns
@@ -106,13 +109,21 @@ class GuidanceLoop:
             camera_jpeg=perception.camera_jpeg,
             recently_spoken=tuple(self._recently_spoken),
         )
-        remaining_s = (deadline_ns - self._clock.now_ns()) / 1e9
+        started_ns = self._clock.now_ns()
+        remaining_s = (deadline_ns - started_ns) / 1e9
         with suppress(TimeoutError):
             async with (
                 aclosing(self._reasoner.advise(request)) as stream,
                 asyncio.timeout(max(0.0, remaining_s)),
             ):
+                first = True
                 async for instruction in stream:
+                    if first:
+                        first = False
+                        self._trace.record(
+                            Stage.REASONER,
+                            self._clock.now_ns() - started_ns,
+                        )
                     self._deliver(geometry, instruction, deadline_ns)
 
     def _deliver(

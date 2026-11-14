@@ -4,6 +4,7 @@ from navigator.adapters.audio.recording import RecordingAudioSink
 from navigator.adapters.clock.manual import ManualClock
 from navigator.adapters.speech.tone import ToneSpeechSynthesizer
 from navigator.adapters.ui.collecting import CollectingEventPublisher
+from navigator.application.latency_trace import LatencyTrace
 from navigator.application.phrase_cache import PhraseCache
 from navigator.application.speech_arbiter import SpeechArbiter
 from navigator.domain.events import Outcome, UtteranceEvent
@@ -31,6 +32,7 @@ async def _rig(
         events=events,
         clock=clock,
         loop=asyncio.get_running_loop(),
+        trace=LatencyTrace(),
         hazard_phrase_cooldown_s=hazard_cooldown_s,
         guidance_phrase_cooldown_s=guidance_cooldown_s,
     )
@@ -140,8 +142,44 @@ async def test_free_text_streams_via_loop():
     arbiter, sink, events, clock = await _rig()
     arbiter.submit(_utt("a free text line", Priority.GUIDANCE))
     await _wait_outcomes(events, 1)
+    for _ in range(200):
+        if len(sink.plays) > 1:
+            break
+        await asyncio.sleep(0.01)
     assert len(sink.plays) > 1
     assert _outcomes(events) == [(Outcome.SPOKEN, "a free text line")]
+
+
+async def test_spoken_published_at_first_stream_chunk():
+    clock = ManualClock(start_ns=5_000_000)
+    sink = RecordingAudioSink(clock=clock)
+    synth = ToneSpeechSynthesizer(delay_s=0.0, seconds_per_char=0.02)
+    events = CollectingEventPublisher()
+    arbiter = SpeechArbiter(
+        sink=sink,
+        synthesizer=synth,
+        cache=PhraseCache(),
+        events=events,
+        clock=clock,
+        loop=asyncio.get_running_loop(),
+        trace=LatencyTrace(),
+    )
+    text = "a long free text line " * 100
+    utterance = _utt(text, Priority.GUIDANCE)
+    arbiter.submit(utterance)
+    clock.advance(200_000_000)
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if sink.plays:
+            break
+    spoken = [
+        e
+        for e in events.events
+        if isinstance(e, UtteranceEvent) and e.outcome is Outcome.SPOKEN
+    ]
+    assert arbiter._current is utterance
+    assert len(spoken) == 1
+    assert spoken[0].age_ms == 205
 
 
 async def test_free_text_stale_before_first_chunk_dropped():
@@ -159,6 +197,11 @@ async def test_current_cleared_after_stream_finishes():
     arbiter, sink, events, clock = await _rig()
     arbiter.submit(_utt("one", Priority.GUIDANCE))
     await _wait_outcomes(events, 1)
+    for _ in range(200):
+        if arbiter._current is None:
+            break
+        await asyncio.sleep(0.01)
+    assert arbiter._current is None
     arbiter.submit(_utt("two", Priority.GUIDANCE))
     await _wait_outcomes(events, 2)
     outcomes = _outcomes(events)
@@ -191,6 +234,7 @@ async def test_failed_stream_clears_current_and_publishes_nothing():
         events=events,
         clock=clock,
         loop=asyncio.get_running_loop(),
+        trace=LatencyTrace(),
     )
     arbiter.submit(_utt("broken", Priority.GUIDANCE))
     for _ in range(100):

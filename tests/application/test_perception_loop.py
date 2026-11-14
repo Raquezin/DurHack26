@@ -2,6 +2,7 @@ from navigator.adapters.camera.synthetic import SyntheticFrameSource
 from navigator.adapters.clock.manual import ManualClock
 from navigator.adapters.perception.scripted import ScriptedScenePerception
 from navigator.adapters.ui.collecting import CollectingEventPublisher
+from navigator.application.latency_trace import LatencyTrace
 from navigator.application.perception_loop import PerceptionLoop
 from navigator.application.scene_board import SceneBoard
 from navigator.domain.events import GeometryEvent, PreviewEvent
@@ -25,6 +26,7 @@ def _rig():
         board=SceneBoard(),
         events=events,
         clock=clock,
+        trace=LatencyTrace(),
         preview_every=3,
     )
     return loop, events

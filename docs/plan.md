@@ -130,7 +130,7 @@ instructions worth following.
 | B7 | Connection warm-up and reuse, image size, phrase forwarding; rerun G2 and G3 on the venue network | first token ≤ 700 ms p50; guidance ≤ 1.0 s p50 end to end |
 | C5 | `ArbitrationPolicy` v2: cool-downs, repeat suppression, escalation; hazard smoothing over consecutive frames | no alert chatter on the recorded session; no missed `STOP` |
 | C6 | Latency panel: per-stage p50, p95, p99; glass-to-ear test | measured table replaces the estimates in [latency-budget.md](latency-budget.md) |
-| C7 | UI v2: zone grid over the depth image, utterance outcomes, connection state | a judge can read the pipeline at a glance |
+| C7 | UI v2: live camera and depth pictures, utterance outcomes, connection state | a judge can read the pipeline at a glance |
 
 **Milestone M2 — blindfold walk.** One person walks the demo route
 blindfolded.
@@ -178,7 +178,7 @@ Features freeze at M2. Everyone works on the demo.
 | Audio device latency | C | Wired headphones; small buffer; glass-to-ear test |
 | Depth backend dependency too new | A | TensorRT path is the alternative ([models.md](models.md)) |
 | Integration surprises late | all | Config-only integration from M1; contract tests |
-| API quota or cost | B | One request in flight, minimum interval, change detection |
+| API quota or cost | B | One request in flight, minimum interval, change detection. The key's free tier allows 500 requests a day and ran out on 14 November; the demo needs a billed key |
 
 ## 7. Definition of done
 

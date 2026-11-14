@@ -8,8 +8,11 @@ from aiohttp import WSMsgType, web
 
 _STATIC = Path(__file__).parent / "static"
 
-_KIND_FRAME = 1
+_KIND_JPEG = 1
 _KIND_PCM = 2
+_KIND_H264 = 3
+_ACK = '{"type":"ack"}'
+_USE_JPEG = '{"type":"jpeg"}'
 
 
 class PhoneLink:
@@ -24,7 +27,9 @@ class PhoneLink:
         self.phone_fps: float | None = None
         self.bound_port: int | None = None
 
-    def set_frame_callback(self, callback: Callable[[bytes], None]) -> None:
+    def set_frame_callback(
+        self, callback: Callable[[bytes, bool], bool]
+    ) -> None:
         self._frame_callback = callback
 
     @property
@@ -66,7 +71,7 @@ class PhoneLink:
         try:
             async for message in ws:
                 if message.type == WSMsgType.BINARY:
-                    self._on_binary(message.data)
+                    await self._on_binary(ws, message.data)
                 elif message.type == WSMsgType.TEXT:
                     await self._on_text(ws, message.data)
         finally:
@@ -74,11 +79,14 @@ class PhoneLink:
                 self._ws = None
         return ws
 
-    def _on_binary(self, data: bytes) -> None:
-        if len(data) > 1 and data[0] == _KIND_FRAME:
-            callback = self._frame_callback
-            if callback is not None:
-                callback(bytes(data[1:]))
+    async def _on_binary(self, ws, data: bytes) -> None:
+        if len(data) < 2 or data[0] not in (_KIND_JPEG, _KIND_H264):
+            return
+        callback = self._frame_callback
+        accepted = callback is None or callback(
+            bytes(data[1:]), data[0] == _KIND_H264
+        )
+        await ws.send_str(_ACK if accepted else _USE_JPEG)
 
     async def _on_text(self, ws, data: str) -> None:
         try:
@@ -86,11 +94,7 @@ class PhoneLink:
         except ValueError:
             return
         kind = payload.get("type")
-        if kind == "ping":
-            await ws.send_str(
-                json.dumps({"type": "pong", "t": payload.get("t")})
-            )
-        elif kind in ("stats", "log"):
+        if kind in ("stats", "log"):
             self.rtt_ms = payload.get("rtt_ms", self.rtt_ms)
             self.phone_fps = payload.get("fps", self.phone_fps)
             print(f"phone {data}", file=sys.stderr, flush=True)
