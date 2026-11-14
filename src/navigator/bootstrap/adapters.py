@@ -9,19 +9,19 @@ from navigator.ports.clock import Clock
 Builder = Callable[[Settings, Clock, Secrets], object]
 
 
-def _clock_system(settings, clock, secrets):
+def _clock_system(settings, clock, secrets, resources):
     from navigator.adapters.clock.system import SystemClock
 
     return SystemClock()
 
 
-def _clock_manual(settings, clock, secrets):
+def _clock_manual(settings, clock, secrets, resources):
     from navigator.adapters.clock.manual import ManualClock
 
     return ManualClock(start_ns=0)
 
 
-def _frame_synthetic(settings, clock, secrets):
+def _frame_synthetic(settings, clock, secrets, resources):
     from navigator.adapters.camera.synthetic import SyntheticFrameSource
 
     return SyntheticFrameSource(
@@ -32,7 +32,7 @@ def _frame_synthetic(settings, clock, secrets):
     )
 
 
-def _frame_webcam(settings, clock, secrets):
+def _frame_webcam(settings, clock, secrets, resources):
     from navigator.adapters.camera.webcam import WebcamFrameSource
 
     return WebcamFrameSource(
@@ -45,13 +45,19 @@ def _frame_webcam(settings, clock, secrets):
     )
 
 
-def _frame_replay(settings, clock, secrets):
+def _frame_replay(settings, clock, secrets, resources):
     from navigator.adapters.camera.replay import ReplayFrameSource
 
     return ReplayFrameSource(clock=clock, session_dir=settings.session_dir)
 
 
-def _perception_scripted(settings, clock, secrets):
+def _frame_phone(settings, clock, secrets, resources):
+    from navigator.adapters.phone.camera import PhoneFrameSource
+
+    return PhoneFrameSource(clock=clock, link=resources.phone_link)
+
+
+def _perception_scripted(settings, clock, secrets, resources):
     from navigator.adapters.perception.scripted import ScriptedScenePerception
 
     return ScriptedScenePerception(
@@ -64,7 +70,7 @@ def _perception_scripted(settings, clock, secrets):
     )
 
 
-def _perception_gpu(settings, clock, secrets):
+def _perception_gpu(settings, clock, secrets, resources):
     from navigator.adapters.perception.gpu import GpuScenePerception
 
     return GpuScenePerception(
@@ -80,13 +86,13 @@ def _perception_gpu(settings, clock, secrets):
     )
 
 
-def _perception_replay(settings, clock, secrets):
+def _perception_replay(settings, clock, secrets, resources):
     from navigator.adapters.perception.replay import ReplayScenePerception
 
     return ReplayScenePerception(clock=clock, session_dir=settings.session_dir)
 
 
-def _reasoner_scripted(settings, clock, secrets):
+def _reasoner_scripted(settings, clock, secrets, resources):
     from navigator.adapters.reasoner.scripted import ScriptedSceneReasoner
 
     phrase = (
@@ -101,7 +107,7 @@ def _reasoner_scripted(settings, clock, secrets):
     )
 
 
-def _reasoner_gemini(settings, clock, secrets):
+def _reasoner_gemini(settings, clock, secrets, resources):
     from navigator.adapters.reasoner.gemini import GeminiSceneReasoner
 
     return GeminiSceneReasoner(
@@ -111,7 +117,7 @@ def _reasoner_gemini(settings, clock, secrets):
     )
 
 
-def _synth_tone(settings, clock, secrets):
+def _synth_tone(settings, clock, secrets, resources):
     from navigator.adapters.speech.tone import ToneSpeechSynthesizer
 
     return ToneSpeechSynthesizer(
@@ -120,7 +126,7 @@ def _synth_tone(settings, clock, secrets):
     )
 
 
-def _synth_elevenlabs(settings, clock, secrets):
+def _synth_elevenlabs(settings, clock, secrets, resources):
     from navigator.adapters.speech.elevenlabs import (
         ElevenLabsSpeechSynthesizer,
     )
@@ -132,19 +138,19 @@ def _synth_elevenlabs(settings, clock, secrets):
     )
 
 
-def _audio_recording(settings, clock, secrets):
+def _audio_recording(settings, clock, secrets, resources):
     from navigator.adapters.audio.recording import RecordingAudioSink
 
     return RecordingAudioSink(clock=clock)
 
 
-def _audio_wav(settings, clock, secrets):
+def _audio_wav(settings, clock, secrets, resources):
     from navigator.adapters.audio.wav import WavFileAudioSink
 
     return WavFileAudioSink(path=settings.wav_path)
 
 
-def _audio_device(settings, clock, secrets):
+def _audio_device(settings, clock, secrets, resources):
     from navigator.adapters.audio.device import SoundDeviceAudioSink
 
     return SoundDeviceAudioSink(
@@ -153,19 +159,25 @@ def _audio_device(settings, clock, secrets):
     )
 
 
-def _events_collecting(settings, clock, secrets):
+def _audio_phone(settings, clock, secrets, resources):
+    from navigator.adapters.phone.audio import PhoneAudioSink
+
+    return PhoneAudioSink(clock=clock, link=resources.phone_link)
+
+
+def _events_collecting(settings, clock, secrets, resources):
     from navigator.adapters.ui.collecting import CollectingEventPublisher
 
     return CollectingEventPublisher()
 
 
-def _events_log(settings, clock, secrets):
+def _events_log(settings, clock, secrets, resources):
     from navigator.adapters.ui.log import LogEventPublisher
 
     return LogEventPublisher(stream=sys.stdout)
 
 
-def _events_web(settings, clock, secrets):
+def _events_web(settings, clock, secrets, resources):
     from navigator.adapters.ui.web import WebEventPublisher
 
     return WebEventPublisher(host=settings.web_host, port=settings.web_port)
@@ -180,6 +192,7 @@ REGISTRY: dict[str, dict[str, Builder]] = {
         "synthetic": _frame_synthetic,
         "webcam": _frame_webcam,
         "replay": _frame_replay,
+        "phone": _frame_phone,
     },
     "scene_perception": {
         "scripted": _perception_scripted,
@@ -198,6 +211,7 @@ REGISTRY: dict[str, dict[str, Builder]] = {
         "recording": _audio_recording,
         "wav": _audio_wav,
         "device": _audio_device,
+        "phone": _audio_phone,
     },
     "event_publisher": {
         "collecting": _events_collecting,
@@ -207,10 +221,21 @@ REGISTRY: dict[str, dict[str, Builder]] = {
 }
 
 
-def build(port: str, settings: Settings, clock: Clock, secrets: Secrets):
+class Resources:
+    def __init__(self) -> None:
+        self.phone_link = None
+
+
+def build(
+    port: str,
+    settings: Settings,
+    clock: Clock,
+    secrets: Secrets,
+    resources: Resources,
+):
     name = settings.adapters[port]
     try:
         builder = REGISTRY[port][name]
     except KeyError:
         raise ValueError(f"unknown {port} adapter {name!r}")
-    return builder(settings, clock, secrets)
+    return builder(settings, clock, secrets, resources)

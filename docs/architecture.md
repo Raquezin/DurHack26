@@ -163,6 +163,7 @@ changing one is a contract change.
 | `FrameSource` | `synthetic` | `camera.synthetic.SyntheticFrameSource` | `(clock, width, height, fps)` | — |
 | `FrameSource` | `webcam` | `camera.webcam.WebcamFrameSource` | `(clock, device, width, height, fps, fourcc)` | context manager |
 | `FrameSource` | `replay` | `camera.replay.ReplayFrameSource` | `(clock, session_dir)` | context manager |
+| `FrameSource` | `phone` | `phone.camera.PhoneFrameSource` | `(clock, link)` | — |
 | `ScenePerception` | `scripted` | `perception.scripted.ScriptedScenePerception` | `(clock, rows, cols, horizontal_fov_deg, start_m, speed_mps)` | — |
 | `ScenePerception` | `gpu` | `perception.gpu.GpuScenePerception` | `(clock, model, input_long_side, rows, cols, horizontal_fov_deg, scale, mount_height_m, pitch_deg)` | context manager |
 | `ScenePerception` | `replay` | `perception.replay.ReplayScenePerception` | `(clock, session_dir)` | — |
@@ -173,12 +174,19 @@ changing one is a contract change.
 | `AudioSink` | `recording` | `audio.recording.RecordingAudioSink` | `(clock)` | — |
 | `AudioSink` | `wav` | `audio.wav.WavFileAudioSink` | `(path)` | context manager |
 | `AudioSink` | `device` | `audio.device.SoundDeviceAudioSink` | `(device, block_frames)` | context manager |
+| `AudioSink` | `phone` | `phone.audio.PhoneAudioSink` | `(clock, link)` | — |
 | `EventPublisher` | `collecting` | `ui.collecting.CollectingEventPublisher` | `()` | — |
 | `EventPublisher` | `log` | `ui.log.LogEventPublisher` | `(stream)` | — |
 | `EventPublisher` | `web` | `ui.web.WebEventPublisher` | `(host, port)` | async context manager |
 
 All arguments are keyword arguments with standard-library values (`Path`
 for directories and files).
+
+`phone.link.PhoneLink(host, port)` is the one connection to an iPhone browser
+(async context manager, built once when either `phone` adapter is selected
+and passed to both as `link`). It serves the capture page; frames go up and
+speech comes down over one WebSocket, through a Cloudflare tunnel to port
+8001.
 
 ## 9. Rules
 

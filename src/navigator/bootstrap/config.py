@@ -34,6 +34,8 @@ class Settings:
     wav_path: Path = Path("out/speech.wav")
     web_host: str = "127.0.0.1"
     web_port: int = 8000
+    phone_host: str = "127.0.0.1"
+    phone_port: int = 8001
     stop_m: float = 1.2
     caution_m: float = 2.0
     trigger_interval_s: float = 1.5
@@ -73,6 +75,15 @@ PRESETS = {
         "audio_sink": "device",
         "event_publisher": "web",
     },
+    "phone": {
+        "clock": "system",
+        "frame_source": "phone",
+        "scene_perception": "gpu",
+        "scene_reasoner": "gemini",
+        "speech_synthesizer": "elevenlabs",
+        "audio_sink": "phone",
+        "event_publisher": "web",
+    },
     "live-offline": {
         "clock": "system",
         "frame_source": "webcam",
@@ -91,3 +102,37 @@ def resolve(preset: str, overrides: dict[str, str]) -> Settings:
     adapters = dict(PRESETS[preset])
     adapters.update(overrides)
     return Settings(adapters=adapters)
+
+
+def apply_overrides(settings: Settings, pairs: list[str]) -> Settings:
+    import typing
+
+    hints = typing.get_type_hints(Settings)
+    values = {}
+    for pair in pairs:
+        key, _, raw = pair.partition("=")
+        if key not in hints:
+            raise ValueError(f"unknown setting {key!r}")
+        values[key] = _convert(raw, hints[key])
+    return replace(settings, **values)
+
+
+def _convert(raw: str, hint):
+    import types
+    import typing
+
+    origin = typing.get_origin(hint)
+    if origin in (typing.Union, types.UnionType):
+        args = [a for a in typing.get_args(hint) if a is not type(None)]
+        if raw.lower() in ("none", ""):
+            return None
+        return _convert(raw, args[0])
+    if hint is bool:
+        return raw.lower() in ("1", "true", "yes", "on")
+    if hint is Path:
+        return Path(raw)
+    if hint is int:
+        return int(raw)
+    if hint is float:
+        return float(raw)
+    return raw

@@ -8,6 +8,8 @@ from navigator.adapters.camera.replay import ReplayFrameSource
 from navigator.adapters.camera.synthetic import SyntheticFrameSource
 from navigator.adapters.clock.system import SystemClock
 
+from _phone_harness import FakePhone, make_jpeg
+
 FPS = 30
 SESSION = Path(__file__).resolve().parents[2] / "fixtures" / "sessions" / "default"
 
@@ -22,6 +24,14 @@ def _replay():
     return ReplayFrameSource(clock=SystemClock(), session_dir=SESSION)
 
 
+def _phone():
+    from navigator.adapters.phone.camera import PhoneFrameSource
+
+    harness = FakePhone()
+    harness.start_streaming(make_jpeg())
+    return PhoneFrameSource(clock=SystemClock(), link=harness.link)
+
+
 def _webcam():
     webcam = pytest.importorskip("navigator.adapters.camera.webcam")
     return webcam.WebcamFrameSource(
@@ -33,6 +43,7 @@ FACTORIES = [
     pytest.param(_synthetic, id="synthetic"),
     pytest.param(_replay, id="replay"),
     pytest.param(_webcam, id="webcam", marks=pytest.mark.camera),
+    pytest.param(_phone, id="phone"),
 ]
 
 

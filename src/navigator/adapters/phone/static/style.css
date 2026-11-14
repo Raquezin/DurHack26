@@ -1,0 +1,9 @@
+body { margin: 0; background: #000; color: #ddd; font-family: sans-serif; }
+#start { position: fixed; inset: 0; margin: auto; width: 70vw; height: 30vh;
+  font-size: 8vw; border-radius: 20px; border: none; background: #2a6;
+  color: #fff; }
+#video { width: 100vw; }
+#stats { position: fixed; top: 0; left: 0; display: flex; gap: 12px;
+  padding: 6px; font-family: monospace; font-size: 14px; background: #000a; }
+#sound { position: fixed; bottom: 16px; left: 16px; right: 16px; height: 64px;
+  font-size: 22px; border-radius: 14px; border: none; background: #36c; color: #fff; }

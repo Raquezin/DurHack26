@@ -11,7 +11,7 @@ from navigator.application.phrase_cache import PhraseCache
 from navigator.application.scene_board import SceneBoard
 from navigator.application.speech_arbiter import SpeechArbiter
 from navigator.bootstrap import adapters
-from navigator.bootstrap.config import PRESETS, resolve
+from navigator.bootstrap.config import PRESETS, apply_overrides, resolve
 from navigator.bootstrap.secrets import Secrets
 from navigator.domain.policies.hazard import HazardThresholds
 from navigator.domain.policies.trigger import TriggerSettings
@@ -40,6 +40,7 @@ def _parse(argv):
     parser.add_argument("--preset", default="all-fakes", choices=PRESETS)
     parser.add_argument("--adapter", action="append", default=[])
     parser.add_argument("--duration-s", type=float, default=None)
+    parser.add_argument("--set", dest="overrides", action="append", default=[])
     args = parser.parse_args(argv)
     overrides = {}
     for item in args.adapter:
@@ -47,7 +48,12 @@ def _parse(argv):
         if port not in adapters.REGISTRY:
             parser.error(f"unknown port {port!r}")
         overrides[port] = name
-    return resolve(args.preset, overrides), args.duration_s
+    settings = resolve(args.preset, overrides)
+    try:
+        settings = apply_overrides(settings, args.overrides)
+    except ValueError as error:
+        parser.error(str(error))
+    return settings, args.duration_s
 
 
 async def _enter(stack, obj):
@@ -62,10 +68,20 @@ async def _run(settings, duration_s) -> None:
     secrets = Secrets.load()
     offset_ns = int(settings.deadline_offset_ms * 1_000_000)
     async with contextlib.AsyncExitStack() as stack:
-        clock = adapters.build("clock", settings, None, secrets)
+        resources = adapters.Resources()
+        clock = adapters.build("clock", settings, None, secrets, resources)
+        if "phone" in (
+            settings.adapters["frame_source"],
+            settings.adapters["audio_sink"],
+        ):
+            from navigator.adapters.phone.link import PhoneLink
+
+            resources.phone_link = await _enter(
+                stack, PhoneLink(settings.phone_host, settings.phone_port)
+            )
         built = {}
         for port in _SERVICE_PORTS:
-            obj = adapters.build(port, settings, clock, secrets)
+            obj = adapters.build(port, settings, clock, secrets, resources)
             built[port] = await _enter(stack, obj)
         voice_key = _voice_key(settings, secrets)
         cache = PhraseCache(

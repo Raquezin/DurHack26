@@ -4,7 +4,10 @@ import pytest
 
 from navigator.adapters.audio.recording import RecordingAudioSink
 from navigator.adapters.clock.manual import ManualClock
+from navigator.adapters.clock.system import SystemClock
 from navigator.domain.speech import PcmChunk
+
+from _phone_harness import FakePhone
 
 
 def _recording():
@@ -24,9 +27,17 @@ def _device():
     return sink
 
 
+def _phone():
+    from navigator.adapters.phone.audio import PhoneAudioSink
+
+    harness = FakePhone()
+    return PhoneAudioSink(clock=SystemClock(), link=harness.link)
+
+
 FACTORIES = [
     _recording,
     pytest.param(_device, marks=pytest.mark.audio_device),
+    pytest.param(_phone, id="phone"),
 ]
 
 
@@ -80,3 +91,27 @@ def test_interrupt_silences_within_one_block():
 def _close(sink):
     if hasattr(sink, "__exit__"):
         sink.__exit__(None, None, None)
+
+
+def test_phone_play_sends_pcm_and_interrupt():
+    import json
+
+    harness = FakePhone()
+    from navigator.adapters.phone.audio import PhoneAudioSink
+
+    sink = PhoneAudioSink(clock=SystemClock(), link=harness.link)
+    sink.play(_chunk(48000))
+    pcm = harness.wait_received(lambda m: m[0] == 2)
+    assert pcm is not None
+    assert pcm[1:] == _chunk(48000).samples
+    assert sink.is_playing()
+    sink.interrupt()
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if any(json.loads(t).get("type") == "interrupt" for t in harness.texts):
+            break
+        time.sleep(0.02)
+    assert any(
+        json.loads(t).get("type") == "interrupt" for t in harness.texts
+    )
+    assert not sink.is_playing()
