@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
 from navigator.domain.phrases import PhraseId
+from navigator.domain.tags import SceneTag
 
 
 class ScriptedSceneReasoner:
@@ -11,7 +12,7 @@ class ScriptedSceneReasoner:
         text: str,
         phrase: PhraseId | None,
         delay_s: float,
-        tags: tuple[str, ...] = (),
+        tags: tuple[SceneTag, ...] = (),
     ) -> None:
         self._text = text
         self._phrase = phrase

@@ -10,6 +10,7 @@ from navigator.adapters.reasoner.prompt import SYSTEM_PROMPT, user_text
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.guidance import GuidanceRequest
 from navigator.domain.phrases import PhraseId
+from navigator.domain.tags import SceneTag
 
 
 class FakeModels:
@@ -153,10 +154,16 @@ async def test_consumer_cancel_closes_provider_stream(install):
 
 
 async def test_tags_line_then_instruction(install):
-    models = FakeModels(["TAGS: pavement, ", "road crossing\nROAD", "_CROSSING"])
+    models = FakeModels(["TAGS: pavement@legs ahead, ", "road crossing@torso ahead\nROAD", "_CROSSING"])
     install(models)
     [instruction] = await _advise()
-    assert instruction.tags == ("pavement", "road crossing")
+    assert instruction.tags == (
+        SceneTag("pavement", ((0.4, 2 / 3), (0.6, 2 / 3), (0.6, 1.0), (0.4, 1.0))),
+        SceneTag(
+            "road crossing",
+            ((0.4, 1 / 3), (0.6, 1 / 3), (0.6, 2 / 3), (0.4, 2 / 3)),
+        ),
+    )
     assert instruction.phrase is PhraseId.ROAD_CROSSING
 
 
@@ -164,7 +171,7 @@ async def test_tags_do_not_delay_the_first_sentence(install):
     models = FakeModels(["TAGS: car\nBear", " right.", " More."])
     install(models)
     [instruction] = await _advise()
-    assert instruction.tags == ("car",)
+    assert instruction.tags == (SceneTag("car"),)
     assert instruction.text == "Bear right."
     assert models.consumed == 2
 
@@ -173,6 +180,6 @@ async def test_tags_without_instruction_are_still_yielded(install):
     models = FakeModels(["TAGS: stairs, door"])
     install(models)
     [instruction] = await _advise()
-    assert instruction.tags == ("stairs", "door")
+    assert instruction.tags == (SceneTag("stairs"), SceneTag("door"))
     assert instruction.phrase is None
     assert instruction.text == ""

@@ -21,7 +21,7 @@ from navigator.domain.policies.trigger import (
     still_valid,
 )
 from navigator.domain.speech import Priority, Utterance
-from navigator.domain.tags import has_road_crossing
+from navigator.domain.tags import SceneTag, has_road_crossing
 from navigator.ports.clock import Clock
 from navigator.ports.event_publisher import EventPublisher
 from navigator.ports.scene_reasoner import SceneReasoner
@@ -153,7 +153,7 @@ class GuidanceLoop:
             return
         self._announce(instruction.phrase, asked, deadline_ns, instruction.text)
 
-    def _note_tags(self, asked: SceneGeometry, tags: tuple[str, ...]) -> None:
+    def _note_tags(self, asked: SceneGeometry, tags: tuple[SceneTag, ...]) -> None:
         if not tags:
             return
         self._events.publish(TagsEvent(frame_id=asked.frame_id, tags=tags))

@@ -67,14 +67,12 @@ figure {
   overflow: hidden;
 }
 
-.picture img {
+.picture canvas {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
-img:not([src]) { visibility: hidden; }
 
 figcaption {
   display: flex;
@@ -184,21 +182,64 @@ figcaption .link[data-state="offline"] { color: var(--stop); }
   flex-wrap: wrap;
   gap: 0.35rem;
   margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
-.tags li {
+.shapes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.shapes polygon,
+.shape-label {
+  --colour: hsl(var(--hue) 85% 45%);
+}
+
+.shapes polygon {
+  fill: color-mix(in srgb, var(--colour) 40%, transparent);
+  stroke: var(--colour);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.shape-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--colour);
+  color: #fff;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+.shapes polygon,
+.shape-label {
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.shapes polygon[data-level="caution"],
+.shape-label[data-level="caution"] { --colour: var(--caution); }
+
+.shapes polygon[data-level="stop"],
+.shape-label[data-level="stop"] { --colour: var(--stop); }
+
+.tag {
   padding: 0.25rem 0.65rem;
   border-radius: 999px;
   background: var(--panel);
   font-size: 0.8rem;
+  white-space: nowrap;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
 }
 
-.tags li[data-level="caution"] { color: var(--caution); }
+.tag[data-level="caution"] { color: var(--caution); }
 
-.tags li[data-level="stop"] {
+.tag[data-level="stop"] {
   background: var(--stop);
   color: #fff;
   font-weight: 600;

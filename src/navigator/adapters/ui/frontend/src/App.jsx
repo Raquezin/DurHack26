@@ -19,7 +19,7 @@ export function App() {
   const [hazard, setHazard] = useState(null);
   const [link, setLink] = useState("offline");
   const [stages, setStages] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [tags, setTags] = useState({ frameId: null, list: [] });
   const speechTimer = useRef(null);
   const hazardTimer = useRef(null);
   const tagsTimer = useRef(null);
@@ -62,8 +62,11 @@ export function App() {
 
   const showTags = useCallback((event) => {
     clearTimeout(tagsTimer.current);
-    setTags(event.tags);
-    tagsTimer.current = setTimeout(() => setTags([]), TAGS_HOLD_MS);
+    setTags({ frameId: event.frame_id, list: event.tags });
+    tagsTimer.current = setTimeout(
+      () => setTags({ frameId: null, list: [] }),
+      TAGS_HOLD_MS,
+    );
   }, []);
 
   const onFeedsPreview = feeds.onPreview;

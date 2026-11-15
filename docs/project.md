@@ -106,8 +106,12 @@ Deliberately minimal — the *user* never sees it; it exists for the demo,
 debugging, and judges:
 
 - **Square 1:** raw real-time camera feed.
-- **Square 2:** live depth map visualization, with chips for what the camera
-  sees (from Gemini). A road crossing is red: depth cannot see a road, so
+- **Square 2:** live depth map visualization, labelled with what the camera
+  sees: each thing is filled in and outlined with its label. Labels come
+  from Gemini, which places them by zone, or with
+  `--adapter scene_reasoner=labeller` from local models that need no
+  network: an object detector whose boxes prompt SAM 2 for the shapes, and
+  a segmentation model for walls, doors and stairs. A road crossing is red: depth cannot see a road, so
   that tag is what stops "keep going straight".
 - **Chat/panel:** streaming reasoning output / instruction log (what the VLM
   "thinks", what was spoken, what was dropped and why).

@@ -4,6 +4,7 @@ from typing import ClassVar
 
 from navigator.domain.hazard import Bearing, HazardLevel
 from navigator.domain.speech import Priority
+from navigator.domain.tags import SceneTag
 
 
 class Outcome(Enum):
@@ -48,7 +49,7 @@ class GuidanceTextEvent:
 @dataclass(frozen=True, slots=True)
 class TagsEvent:
     frame_id: int
-    tags: tuple[str, ...]
+    tags: tuple[SceneTag, ...]
     type: ClassVar[str] = "tags"
 
 

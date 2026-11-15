@@ -3,7 +3,7 @@ import re
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.guidance import GuidanceRequest
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
-from navigator.domain.tags import ROAD_CROSSING, clean_tags
+from navigator.domain.tags import ROAD_CROSSING, SceneTag, clean_tags
 
 GUIDANCE_PHRASES = (
     PhraseId.GO_STRAIGHT,
@@ -32,8 +32,11 @@ SYSTEM_PROMPT = "\n".join(
         "Do not repeat a recent instruction unless the scene has changed.",
         "Your answer has two lines. The first is TAGS: then two to six short "
         "lowercase labels, comma separated, of what the camera sees that "
-        "matters to a walker, for example pavement, person, car, stairs, "
-        "door, bench. The second line is the instruction.",
+        "matters to a walker. After each label write @ and where it is in "
+        "the picture: its row (head, torso or legs) then its column (far "
+        "left, left, ahead, right or far right), for example table@legs "
+        "left, person@torso ahead, wall@head far right, door@torso right. "
+        "The second line is the instruction.",
         f"Use exactly the label '{ROAD_CROSSING}' whenever the way ahead "
         "crosses a road, crosswalk, zebra crossing, tram line or any lane "
         "where vehicles may pass, even when it looks empty. The depth data "
@@ -43,7 +46,8 @@ SYSTEM_PROMPT = "\n".join(
 )
 
 _ROWS = ("head", "torso", "legs")
-_COLS = "far left, left, ahead, right, far right"
+_COL_NAMES = ("far left", "left", "ahead", "right", "far right")
+_COLS = ", ".join(_COL_NAMES)
 _TERMINATOR = re.compile(r"[.!?](?=\s)|(?<!\d)[.!?]$")
 _IDENTIFIER = re.compile(r"[A-Z]+(?:_[A-Z]+)+")
 _BY_TEXT = {text.casefold(): p for p, text in PHRASE_TEXT.items()}
@@ -84,15 +88,31 @@ def user_text(request: GuidanceRequest) -> str:
     )
 
 
+def _tag(item: str) -> SceneTag:
+    label, _, place = item.partition("@")
+    row, _, col = " ".join(place.lower().split()).strip(".").partition(" ")
+    if row in _ROWS and col in _COL_NAMES:
+        top, left = _ROWS.index(row), _COL_NAMES.index(col)
+        rows, cols = len(_ROWS), len(_COL_NAMES)
+        x0, x1 = left / cols, (left + 1) / cols
+        y0, y1 = top / rows, (top + 1) / rows
+        return SceneTag(label, ((x0, y0), (x1, y0), (x1, y1), (x0, y1)))
+    return SceneTag(label)
+
+
+def parse_tags(line: str) -> tuple[SceneTag, ...]:
+    return clean_tags(_tag(item) for item in line.split(","))
+
+
 def split_tags(
     buffer: str, final: bool = False
-) -> tuple[tuple[str, ...], str] | None:
+) -> tuple[tuple[SceneTag, ...], str] | None:
     match = _TAGS_LINE.match(buffer)
     if match is None:
         return (), buffer
     if not match.group(2) and not final:
         return None
-    return clean_tags(match.group(1).split(",")), buffer[match.end() :]
+    return parse_tags(match.group(1)), buffer[match.end() :]
 
 
 def first_sentence(buffer: str) -> str | None:

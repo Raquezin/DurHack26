@@ -12,6 +12,7 @@ from navigator.adapters.reasoner.prompt import (
     user_text,
 )
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
+from navigator.domain.tags import SceneTag
 
 
 def generation_config(max_output_tokens: int) -> types.GenerateContentConfig:
@@ -47,7 +48,7 @@ class GeminiSceneReasoner:
         await self._client.aio.aclose()
         self._client = None
 
-    async def _answer(self, request: GuidanceRequest) -> tuple[tuple[str, ...], str]:
+    async def _answer(self, request: GuidanceRequest) -> tuple[tuple[SceneTag, ...], str]:
         stream = await self._client.aio.models.generate_content_stream(
             model=self._model, contents=contents(request), config=self._config
         )

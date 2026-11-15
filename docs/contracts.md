@@ -69,12 +69,17 @@ class GuidanceRequest:
     recently_spoken: tuple[str, ...]
 
 @dataclass(frozen=True, slots=True)
+class SceneTag:
+    label: str
+    outline: tuple[tuple[float, float], ...] = ()
+
+@dataclass(frozen=True, slots=True)
 class GuidanceInstruction:
     phrase: PhraseId | None
     text: str
     frame_id: int
     t_capture_ns: int
-    tags: tuple[str, ...] = ()
+    tags: tuple[SceneTag, ...] = ()
 
 @dataclass(frozen=True, slots=True)
 class Utterance:
@@ -103,7 +108,7 @@ class PcmChunk:
 | | `camera_jpeg`, `depth_jpeg` | Previews; `None` on frames where they were skipped |
 | `GuidanceRequest` | `recently_spoken` | Last few spoken texts, newest last, so the reasoner does not repeat itself |
 | `GuidanceInstruction` | `phrase` | Set when the instruction is exactly a catalogue phrase; `text` is then the catalogue text |
-| | `tags` | Up to six lowercase labels of what the camera shows. A tag containing `crossing`, `crosswalk` or `zebra` means the way ahead crosses a road: `GuidanceLoop` then says `ROAD_CROSSING` and mutes "go straight" for 12 s. `text` may be empty when only tags came back |
+| | `tags` | Up to 24 things the camera shows. `label` is lowercase; `outline` is its shape in the picture, a polygon of (x, y) points as fractions of the width and height, empty when the reasoner did not place it. A label containing `crossing`, `crosswalk` or `zebra` means the way ahead crosses a road: `GuidanceLoop` then says `ROAD_CROSSING` and mutes "go straight" for 12 s. `text` may be empty when only tags came back |
 | `Utterance` | `deadline_ns` | Set by the producer according to invariant 6 |
 | `PcmChunk` | `samples` | Invariant 5; even number of bytes |
 
@@ -234,7 +239,7 @@ WebSocket, JSON events are text messages and previews are binary messages.
 | `geometry` | `frame_id`, `distances_m`, `valid`, `age_ms` | `PerceptionLoop` |
 | `hazard` | `level`, `bearing`, `distance_m`, `frame_id` | `HazardMonitor` |
 | `guidance_text` | `request_id`, `delta`, `final` | `GuidanceLoop` |
-| `tags` | `frame_id`, `tags` | `GuidanceLoop` |
+| `tags` | `frame_id`, `tags` (each `label`, `outline`) | `GuidanceLoop` |
 | `utterance` | `text`, `priority`, `outcome`, `age_ms` | `SpeechArbiter` |
 | `timing` | stage name → p50, p95, p99 in ms | every service |
 | `preview` | `kind` (`camera` or `depth`), `frame_id`, `jpeg` | `PerceptionLoop` |

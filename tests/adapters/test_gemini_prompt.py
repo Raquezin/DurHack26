@@ -8,12 +8,14 @@ from navigator.adapters.reasoner.prompt import (
     distance_grid,
     first_sentence,
     parse_answer,
+    parse_tags,
     split_tags,
     user_text,
 )
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.guidance import GuidanceRequest
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
+from navigator.domain.tags import SceneTag
 
 SCENES = Path(__file__).resolve().parents[2] / "fixtures" / "scenes"
 
@@ -114,10 +116,32 @@ def test_split_tags_waits_for_the_end_of_the_line():
 
 def test_split_tags_then_instruction():
     assert split_tags("TAGS: Pavement, Car.\nTurn left.") == (
-        ("pavement", "car"),
+        (SceneTag("pavement"), SceneTag("car")),
         "Turn left.",
     )
-    assert split_tags("tags : door\nDOOR_AHEAD") == (("door",), "DOOR_AHEAD")
+    assert split_tags("tags : door\nDOOR_AHEAD") == (
+        (SceneTag("door"),),
+        "DOOR_AHEAD",
+    )
+
+
+def _cell(x0, y0, x1, y1):
+    return ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+
+
+def test_tags_carry_the_zone_they_were_seen_in():
+    assert parse_tags("Table@legs far left, person @ Torso  ahead, wall@head far right.") == (
+        SceneTag("table", _cell(0.0, 2 / 3, 0.2, 1.0)),
+        SceneTag("person", _cell(0.4, 1 / 3, 0.6, 2 / 3)),
+        SceneTag("wall", _cell(0.8, 0.0, 1.0, 1 / 3)),
+    )
+
+
+def test_a_tag_with_an_unknown_place_keeps_its_label():
+    assert parse_tags("bench@somewhere, stairs@legs") == (
+        SceneTag("bench"),
+        SceneTag("stairs"),
+    )
 
 
 def test_split_tags_without_a_tags_line_keeps_the_answer():
@@ -125,7 +149,7 @@ def test_split_tags_without_a_tags_line_keeps_the_answer():
 
 
 def test_split_tags_final_accepts_an_unfinished_line():
-    assert split_tags("TAGS: stairs", final=True) == (("stairs",), "")
+    assert split_tags("TAGS: stairs", final=True) == ((SceneTag("stairs"),), "")
 
 
 def test_prompt_asks_for_tags_and_names_the_road_crossing_label():

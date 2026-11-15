@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { Hazard } from "./Hazard.jsx";
+import { createMotion } from "./motion.js";
 import { Tags } from "./Tags.jsx";
 
 const KIND_CAMERA = 1;
@@ -13,25 +14,31 @@ export function useFeeds() {
   const painting = useRef({ [KIND_CAMERA]: false, [KIND_DEPTH]: false });
   const pending = useRef({ [KIND_CAMERA]: null, [KIND_DEPTH]: null });
   const [ratio, setRatio] = useState(null);
+  const [motion] = useState(createMotion);
 
-  const show = useCallback((kind, frameId, jpeg) => {
-    const image =
-      kind === KIND_CAMERA
-        ? camera.current
-        : kind === KIND_DEPTH
-          ? depth.current
-          : null;
-    if (!image || frameId < newest.current[kind]) return;
-    newest.current[kind] = frameId;
-    const previous = image.src;
-    image.src = URL.createObjectURL(
-      new Blob([jpeg], { type: "image/jpeg" }),
-    );
-    if (previous.startsWith("blob:")) URL.revokeObjectURL(previous);
-  }, []);
+  const draw = useCallback(
+    async (kind, frameId, jpeg) => {
+      const bitmap = await createImageBitmap(
+        new Blob([jpeg], { type: "image/jpeg" }),
+      );
+      const canvas = kind === KIND_CAMERA ? camera.current : depth.current;
+      if (canvas && frameId >= newest.current[kind]) {
+        newest.current[kind] = frameId;
+        if (canvas.width !== bitmap.width) canvas.width = bitmap.width;
+        if (canvas.height !== bitmap.height) canvas.height = bitmap.height;
+        canvas.getContext("2d").drawImage(bitmap, 0, 0);
+        if (kind === KIND_CAMERA) {
+          setRatio(bitmap.width / bitmap.height);
+          motion.observe(bitmap, Number(frameId));
+        }
+      }
+      bitmap.close();
+    },
+    [motion],
+  );
 
   const onPreview = useCallback(
-    (kind, frameId, jpeg) => {
+    async (kind, frameId, jpeg) => {
       if (kind !== KIND_CAMERA && kind !== KIND_DEPTH) return;
       if (painting.current[kind]) {
         const held = pending.current[kind];
@@ -40,23 +47,19 @@ export function useFeeds() {
         return;
       }
       painting.current[kind] = true;
-      show(kind, frameId, jpeg);
-      requestAnimationFrame(() => {
+      try {
+        await draw(kind, frameId, jpeg);
+      } finally {
         painting.current[kind] = false;
-        const next = pending.current[kind];
-        pending.current[kind] = null;
-        if (next) onPreview(kind, next.frameId, next.jpeg);
-      });
+      }
+      const next = pending.current[kind];
+      pending.current[kind] = null;
+      if (next) onPreview(kind, next.frameId, next.jpeg);
     },
-    [show],
+    [draw],
   );
 
-  // Both previews come from the same frame, so one ratio sizes both pictures.
-  const onCameraLoad = useCallback((event) => {
-    setRatio(event.target.naturalWidth / event.target.naturalHeight);
-  }, []);
-
-  return { camera, depth, ratio, onPreview, onCameraLoad };
+  return { camera, depth, ratio, motion, onPreview };
 }
 
 export function Feeds({ feeds, hazard, tags, link }) {
@@ -67,12 +70,7 @@ export function Feeds({ feeds, hazard, tags, link }) {
     >
       <figure>
         <div className="picture">
-          <img
-            ref={feeds.camera}
-            alt="camera"
-            decoding="async"
-            onLoad={feeds.onCameraLoad}
-          />
+          <canvas ref={feeds.camera} aria-label="camera" />
           <Hazard hazard={hazard} />
         </div>
         <figcaption>
@@ -84,8 +82,8 @@ export function Feeds({ feeds, hazard, tags, link }) {
       </figure>
       <figure>
         <div className="picture">
-          <img ref={feeds.depth} alt="depth" decoding="async" />
-          <Tags tags={tags} />
+          <canvas ref={feeds.depth} aria-label="depth" />
+          <Tags tags={tags} motion={feeds.motion} />
         </div>
         <figcaption>Depth</figcaption>
       </figure>

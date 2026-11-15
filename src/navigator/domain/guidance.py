@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.phrases import PhraseId
+from navigator.domain.tags import SceneTag
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,4 +18,4 @@ class GuidanceInstruction:
     text: str
     frame_id: int
     t_capture_ns: int
-    tags: tuple[str, ...] = ()
+    tags: tuple[SceneTag, ...] = ()

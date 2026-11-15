@@ -4,7 +4,6 @@ from collections.abc import Callable
 from navigator.bootstrap.config import Settings
 from navigator.bootstrap.secrets import Secrets
 from navigator.domain.phrases import PhraseId
-from navigator.domain.tags import clean_tags
 from navigator.ports.clock import Clock
 
 Builder = Callable[[Settings, Clock, Secrets], object]
@@ -94,6 +93,7 @@ def _perception_replay(settings, clock, secrets, resources):
 
 
 def _reasoner_scripted(settings, clock, secrets, resources):
+    from navigator.adapters.reasoner.prompt import parse_tags
     from navigator.adapters.reasoner.scripted import ScriptedSceneReasoner
 
     phrase = (
@@ -105,7 +105,7 @@ def _reasoner_scripted(settings, clock, secrets, resources):
         text=settings.reasoner_text,
         phrase=phrase,
         delay_s=settings.reasoner_delay_s,
-        tags=clean_tags(settings.reasoner_tags.split(",")),
+        tags=parse_tags(settings.reasoner_tags),
     )
 
 
@@ -116,6 +116,16 @@ def _reasoner_gemini(settings, clock, secrets, resources):
         api_key=secrets.require("GEMINI_API_KEY"),
         model=settings.gemini_model,
         max_output_tokens=settings.gemini_max_output_tokens,
+    )
+
+
+def _reasoner_labeller(settings, clock, secrets, resources):
+    from navigator.adapters.reasoner.labeller import LabellerSceneReasoner
+
+    return LabellerSceneReasoner(
+        detector=settings.labeller_detector,
+        segmenter=settings.labeller_segmenter,
+        masker=settings.labeller_masker,
     )
 
 
@@ -204,6 +214,7 @@ REGISTRY: dict[str, dict[str, Builder]] = {
     "scene_reasoner": {
         "scripted": _reasoner_scripted,
         "gemini": _reasoner_gemini,
+        "labeller": _reasoner_labeller,
     },
     "speech_synthesizer": {
         "tone": _synth_tone,

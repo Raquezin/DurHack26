@@ -177,6 +177,7 @@ changing one is a contract change.
 | `ScenePerception` | `replay` | `perception.replay.ReplayScenePerception` | `(clock, session_dir)` | — |
 | `SceneReasoner` | `scripted` | `reasoner.scripted.ScriptedSceneReasoner` | `(text, phrase, delay_s)` | — |
 | `SceneReasoner` | `gemini` | `reasoner.gemini.GeminiSceneReasoner` | `(api_key, model, max_output_tokens)` | async context manager |
+| `SceneReasoner` | `labeller` | `reasoner.labeller.LabellerSceneReasoner` | `(detector, segmenter, masker)` | context manager |
 | `SpeechSynthesizer` | `tone` | `speech.tone.ToneSpeechSynthesizer` | `(delay_s, seconds_per_char)` | — |
 | `SpeechSynthesizer` | `elevenlabs` | `speech.elevenlabs.ElevenLabsSpeechSynthesizer` | `(api_key, voice_id, model)` | async context manager |
 | `AudioSink` | `recording` | `audio.recording.RecordingAudioSink` | `(clock)` | — |

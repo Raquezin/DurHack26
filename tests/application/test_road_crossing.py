@@ -8,11 +8,12 @@ from navigator.domain.events import TagsEvent
 from navigator.domain.guidance import GuidanceInstruction
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
 from navigator.domain.policies.trigger import TriggerSettings
+from navigator.domain.tags import SceneTag
 
 
 class TaggedReasoner:
     def __init__(self, tags, text="Keep going straight.", phrase=PhraseId.GO_STRAIGHT):
-        self.tags = tags
+        self.tags = tuple(SceneTag(label) for label in tags)
         self.text = text
         self.phrase = phrase
 
@@ -39,7 +40,11 @@ async def _run(reasoner, frames=12):
 
 
 def _tags(events):
-    return [e.tags for e in events.events if isinstance(e, TagsEvent)]
+    return [
+        tuple(tag.label for tag in e.tags)
+        for e in events.events
+        if isinstance(e, TagsEvent)
+    ]
 
 
 async def test_road_crossing_is_announced_whatever_the_model_says():
