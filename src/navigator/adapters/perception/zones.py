@@ -6,6 +6,9 @@ FLOOR_MARGIN = 0.9
 MAX_RANGE_M = 10.0
 NEAR_PERCENTILE = 0.05
 MIN_VALID_FRACTION = 0.25
+FLOOR_BAND = 0.2
+PITCH_MIN_DEG = -20.0
+PITCH_MAX_DEG = 40.0
 
 
 def focal_px(width: int, horizontal_fov_deg: float) -> float:
@@ -33,6 +36,25 @@ def floor_depth(
         down > 0, mount_height_m / down.clamp(min=1e-6), torch.inf
     )
     return expected[:, None]
+
+
+def estimate_pitch_deg(
+    depth: torch.Tensor,
+    usable: torch.Tensor,
+    focal: float,
+    mount_height_m: float,
+) -> float | None:
+    height = depth.shape[0]
+    band = slice(int(height * (1 - FLOOR_BAND)), height)
+    ray_y = (torch.arange(height, device=depth.device) - (height - 1) / 2)[band] / focal
+    rows = torch.where(usable[band], depth[band], torch.nan).nanmedian(dim=1).values
+    ratio = mount_height_m / (rows * torch.sqrt(1 + ray_y**2))
+    pitch = torch.asin(ratio.clamp(max=1.0)) - torch.atan(ray_y)
+    pitch = torch.where(ratio < 1.0, pitch, torch.nan)
+    estimate = pitch.nanmedian()
+    if torch.isnan(estimate):
+        return None
+    return min(max(math.degrees(estimate.item()), PITCH_MIN_DEG), PITCH_MAX_DEG)
 
 
 def reduce_zones(

@@ -6,6 +6,7 @@ from fastforks import depth as fastforks_depth
 
 from navigator.adapters.perception.previews import PreviewEncoder
 from navigator.adapters.perception.zones import (
+    estimate_pitch_deg,
     floor_depth,
     focal_px,
     intrinsics,
@@ -17,6 +18,7 @@ from navigator.ports.clock import Clock
 
 WARM_UP_PASSES = 20
 WARM_UP_SHAPE = (480, 640)
+PITCH_SMOOTHING = 0.1
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +27,7 @@ class _Slot:
     pinned: torch.Tensor
     device: torch.Tensor
     intrinsics: torch.Tensor
-    floor: torch.Tensor
+    focal: float
 
 
 class GpuScenePerception:
@@ -49,6 +51,7 @@ class GpuScenePerception:
         self._hfov = horizontal_fov_deg
         self._scale = scale
         self._mount_height_m = mount_height_m
+        self._initial_pitch_deg = pitch_deg
         self._pitch_deg = pitch_deg
         self._device = torch.device("cuda")
         self._slots: dict[tuple[int, int], _Slot] = {}
@@ -80,6 +83,7 @@ class GpuScenePerception:
             frame = Frame(index, 0, width, height, pixels)
             self.perceive(frame, with_previews=index % 2 == 0)
         torch.cuda.synchronize()
+        self._pitch_deg = self._initial_pitch_deg
 
     def perceive(self, frame: Frame, with_previews: bool) -> Perception:
         slot = self._slot(frame.height, frame.width)
@@ -92,9 +96,8 @@ class GpuScenePerception:
         result = self._model(rgb, intrinsics=slot.intrinsics)
         depth = result.depth * self._scale
         usable = torch.isfinite(depth) & (depth > 0) & result.mask
-        nearest, valid = reduce_zones(
-            depth, usable, slot.floor, self._rows, self._cols
-        )
+        floor = self._floor(depth, usable, slot.focal)
+        nearest, valid = reduce_zones(depth, usable, floor, self._rows, self._cols)
         values = torch.cat((nearest, valid.float())).cpu().tolist()
         zones = self._rows * self._cols
         geometry = SceneGeometry(
@@ -117,23 +120,28 @@ class GpuScenePerception:
             depth_jpeg=depth_jpeg,
         )
 
+    def _floor(self, depth: torch.Tensor, usable: torch.Tensor, focal: float) -> torch.Tensor:
+        measured = estimate_pitch_deg(depth, usable, focal, self._mount_height_m)
+        if measured is not None:
+            self._pitch_deg += PITCH_SMOOTHING * (measured - self._pitch_deg)
+        return floor_depth(
+            depth.shape[0], focal, self._mount_height_m, self._pitch_deg, self._device
+        )
+
+    @property
+    def pitch_deg(self) -> float:
+        return self._pitch_deg
+
     def _slot(self, height: int, width: int) -> _Slot:
         slot = self._slots.get((height, width))
         if slot is None:
             pinned = torch.empty((height, width, 3), dtype=torch.uint8).pin_memory()
-            focal = focal_px(width, self._hfov)
             slot = _Slot(
                 host=pinned.numpy(),
                 pinned=pinned,
                 device=torch.empty_like(pinned, device=self._device),
                 intrinsics=intrinsics(height, width, self._hfov),
-                floor=floor_depth(
-                    height,
-                    focal,
-                    self._mount_height_m,
-                    self._pitch_deg,
-                    self._device,
-                ),
+                focal=focal_px(width, self._hfov),
             )
             self._slots[(height, width)] = slot
         return slot

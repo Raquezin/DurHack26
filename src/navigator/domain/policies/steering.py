@@ -15,8 +15,8 @@ class SteeringSettings:
     look_m: float = 3.0
     open_m: float = 2.0
     half_width_m: float = 0.4
-    confirm_frames: int = 5
-    min_interval_s: float = 3.0
+    confirm_frames: int = 8
+    min_interval_s: float = 1.5
     repeat_s: float = 12.0
     max_m: float = 10.0
 
@@ -107,12 +107,7 @@ def advise(
     state = replace(state, seen=phrase, streak=streak)
     if phrase is None or streak < settings.confirm_frames:
         return state, None
-    if phrase is state.spoken:
-        quiet_s = settings.repeat_s
-    elif (state.spoken in _OPEN) != (phrase in _OPEN):
-        quiet_s = 0.0
-    else:
-        quiet_s = settings.min_interval_s
+    quiet_s = settings.repeat_s if phrase is state.spoken else settings.min_interval_s
     if state.spoken_ns is not None and now_ns - state.spoken_ns < quiet_s * 1e9:
         return state, None
     return replace(state, spoken=phrase, spoken_ns=now_ns), phrase

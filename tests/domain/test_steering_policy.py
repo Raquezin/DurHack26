@@ -118,11 +118,6 @@ def test_flicker_is_never_spoken():
     assert _run([left, right] * 5) == [None] * 10
 
 
-def test_leaving_the_open_path_is_said_at_once():
-    straight, left = PhraseId.GO_STRAIGHT, PhraseId.VEER_LEFT
-    spoken = _run([straight] * 3 + [left] * 40)
-    assert spoken[2] is straight
-    assert spoken.index(left) == 5
 
 
 def test_direction_change_waits_for_min_interval():
@@ -147,11 +142,11 @@ def test_tie_at_the_far_edges_goes_to_the_roomier_side():
     assert steer(scene([10.0, 2.0, 1.0, 5.0, 10.0]), S) is PhraseId.TURN_RIGHT
 
 
-def test_back_to_straight_is_said_at_once():
+def test_back_to_straight_waits_for_min_interval():
     straight, left = PhraseId.GO_STRAIGHT, PhraseId.VEER_LEFT
-    spoken = _run([left] * 3 + [straight] * 5)
+    spoken = _run([left] * 3 + [straight] * 40)
     assert spoken[2] is left
-    assert spoken[5] is straight
+    assert spoken.index(straight) == 32
 
 
 def fine(columns):

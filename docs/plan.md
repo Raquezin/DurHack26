@@ -190,3 +190,19 @@ Features freeze at M2. Everyone works on the demo.
 - With the network unplugged, hazard alerts still work and nothing stale is
   spoken.
 - Every document states measured numbers, not estimates.
+
+## 8. Demo sprint, 2026-11-15 06:45 to 07:35
+
+Evidence from the recorded phone walks: the voice said only "Stop. Turn
+left/right." and every column read about 1 m. The chest-worn phone tilts
+down, the floor model assumes it is level, so the floor reads as a wall.
+
+| Time | Step | Done when |
+| --- | --- | --- |
+| 06:45 to 07:05 | Estimate camera pitch from the floor every frame instead of assuming level | Clear corridor reads 3 m or more on the phone |
+| 07:05 to 07:15 | Walk with the recorder running | "Keep going straight" and "Move a little left/right" appear in the log |
+| 07:15 to 07:25 | Tune stop distance, confirmation frames and repeat interval from the recording | One full walk without a false "Stop" |
+| 07:25 to 07:35 | Commit, freeze, rehearse the demo route twice | Demo route walked twice with correct guidance |
+
+After the demo: use labels in decisions (person ahead, door, stairs) and get
+the new phrases approved under the contract change protocol.
