@@ -9,24 +9,24 @@ def _outline(x0, y0, x1, y1):
 
 def test_names_the_thing_ahead():
     tags = (SceneTag("chair", _outline(0.4, 0.4, 0.6, 0.9)),)
-    assert describe(tags, Bearing.AHEAD) == "There is a chair in front of you."
+    assert describe(tags, Bearing.AHEAD) == "A chair ahead."
 
 
 def test_names_the_side():
     left = (SceneTag("chair", _outline(0.05, 0.4, 0.25, 0.9)),)
     right = (SceneTag("chair", _outline(0.75, 0.4, 0.95, 0.9)),)
-    assert describe(left, Bearing.LEFT) == "There is a chair on your left."
-    assert describe(right, Bearing.RIGHT) == "There is a chair on your right."
+    assert describe(left, Bearing.LEFT) == "A chair on your left."
+    assert describe(right, Bearing.RIGHT) == "A chair on your right."
 
 
 def test_person_becomes_someone():
     tags = (SceneTag("person", _outline(0.4, 0.1, 0.6, 0.9)),)
-    assert describe(tags, Bearing.AHEAD) == "There is someone in front of you."
+    assert describe(tags, Bearing.AHEAD) == "Someone ahead."
 
 
 def test_vowel_start_gets_an():
     tags = (SceneTag("apple", _outline(0.4, 0.4, 0.6, 0.9)),)
-    assert describe(tags, Bearing.AHEAD) == "There is an apple in front of you."
+    assert describe(tags, Bearing.AHEAD) == "An apple ahead."
 
 
 def test_tag_without_outline_is_skipped():
@@ -44,12 +44,12 @@ def test_lowest_tag_wins_when_several_overlap():
         SceneTag("box", _outline(0.4, 0.1, 0.6, 0.4)),
         SceneTag("chair", _outline(0.4, 0.4, 0.6, 0.9)),
     )
-    assert describe(tags, Bearing.AHEAD) == "There is a chair in front of you."
+    assert describe(tags, Bearing.AHEAD) == "A chair ahead."
 
 
 def test_tag_spanning_the_region_matches():
     tags = (SceneTag("person", _outline(0.1, 0.2, 0.7, 0.95)),)
-    assert describe(tags, Bearing.AHEAD) == "There is someone in front of you."
+    assert describe(tags, Bearing.AHEAD) == "Someone ahead."
 
 
 def test_no_tags_no_sentence():

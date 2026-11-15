@@ -14,6 +14,7 @@ from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.hazard import HazardLevel
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
 from navigator.domain.policies.hazard import HazardThresholds
+from navigator.domain.speech import Priority
 from navigator.domain.tags import SceneTag
 
 _TURNS = {PHRASE_TEXT[PhraseId.STOP_GO_LEFT], PHRASE_TEXT[PhraseId.STOP_GO_RIGHT]}
@@ -163,7 +164,11 @@ async def test_stop_describes_the_thing_ahead():
         e.text for e in events.events if isinstance(e, UtteranceEvent)
     ]
     assert texts[0] in _TURNS
-    assert texts[1] == "There is a chair in front of you."
+    assert texts[1] == "A chair ahead."
+    utterances = [
+        e for e in events.events if isinstance(e, UtteranceEvent)
+    ]
+    assert utterances[1].priority is Priority.DESCRIPTION
     assert len(sink.plays) >= 2
 
 
@@ -194,7 +199,7 @@ async def test_caution_describes_then_stop_stays_clean():
         if isinstance(e, UtteranceEvent) and e.outcome is Outcome.SPOKEN
     ]
     assert spoken[0] == PHRASE_TEXT[PhraseId.CAUTION_AHEAD]
-    assert spoken[1] == "There is a chair in front of you."
+    assert spoken[1] == "A chair ahead."
     assert spoken[2] in _TURNS
     assert len(spoken) == 3
 

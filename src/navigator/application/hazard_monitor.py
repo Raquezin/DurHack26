@@ -107,7 +107,7 @@ class HazardMonitor:
             return
         self._arbiter.submit(
             Utterance(
-                priority=Priority.GUIDANCE,
+                priority=Priority.DESCRIPTION,
                 phrase=None,
                 text=text,
                 frame_id=alert.frame_id,

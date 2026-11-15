@@ -8,7 +8,7 @@ _REGION = {
 }
 _PLACE = {
     Bearing.LEFT: "on your left",
-    Bearing.AHEAD: "in front of you",
+    Bearing.AHEAD: "ahead",
     Bearing.RIGHT: "on your right",
 }
 _VOWELS = "aeiou"
@@ -33,4 +33,4 @@ def describe(tags: tuple[SceneTag, ...], bearing: Bearing) -> str | None:
     if not found:
         return None
     tag = max(found, key=lambda t: max(y for _, y in t.outline))
-    return f"There is {_noun(tag.label)} {_PLACE[bearing]}."
+    return f"{_noun(tag.label).capitalize()} {_PLACE[bearing]}."

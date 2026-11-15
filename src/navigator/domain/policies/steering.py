@@ -17,7 +17,7 @@ class SteeringSettings:
     look_m: float = 3.0
     open_m: float = 2.0
     half_width_m: float = 0.4
-    confirm_frames: int = 8
+    confirm_frames: int = 5
     min_interval_s: float = 1.5
     repeat_s: float = 30.0
     max_m: float = 10.0
