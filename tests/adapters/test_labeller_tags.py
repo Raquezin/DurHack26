@@ -85,7 +85,3 @@ def test_boxes_the_detector_garbled_are_dropped():
     assert _names([_found("person", 0.9, box) for box in garbled]) == []
 
 
-def test_a_label_shows_only_once_seen_on_two_passes_in_a_row():
-    person, chair = SceneTag("person", ((0, 0), (1, 0), (1, 1))), SceneTag("chair")
-    assert labeller.confirmed([person, chair], {"chair"}) == [chair]
-    assert labeller.confirmed([person, chair], {"person", "chair"}) == [person, chair]

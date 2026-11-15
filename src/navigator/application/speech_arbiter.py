@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import threading
 
 from navigator.application.latency_trace import LatencyTrace, Stage
@@ -59,12 +60,13 @@ class SpeechArbiter:
             if self._current_started and not self._sink.is_playing():
                 current = None
             if current is not None:
-                if (
-                    not self._current_started
-                    and utterance.priority <= current.priority
-                ):
-                    self._publish(current, Outcome.REPLACED)
-                elif self._current_started and arbitration.preempts(
+                if not self._current_started:
+                    if utterance.priority <= current.priority:
+                        self._publish(current, Outcome.REPLACED)
+                    else:
+                        self._publish(utterance, Outcome.REPLACED)
+                        return
+                elif arbitration.preempts(
                     utterance.priority, current.priority
                 ):
                     self._sink.interrupt()
@@ -126,8 +128,8 @@ class SpeechArbiter:
                     self._publish(utterance, Outcome.SPOKEN)
                     continue
                 self._sink.play(chunk)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"tts {exc}", file=sys.stderr, flush=True)
         finally:
             self._clear_current(utterance)
 

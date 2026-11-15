@@ -73,6 +73,17 @@ async def test_phrase_plays_from_cache_on_calling_thread():
     assert _outcomes(events) == [(Outcome.SPOKEN, "Stop.")]
 
 
+async def test_pending_survives_a_lower_priority_submit():
+    arbiter, sink, events, _ = await _rig(synth_delay_s=0.3)
+    arbiter.submit(_utt("move left", Priority.GUIDANCE))
+    arbiter.submit(_utt("a chair ahead", Priority.DESCRIPTION))
+    await _wait_outcomes(events, 2)
+    assert _outcomes(events) == [
+        (Outcome.REPLACED, "a chair ahead"),
+        (Outcome.SPOKEN, "move left"),
+    ]
+
+
 async def test_stale_dropped_at_submit():
     arbiter, sink, events, clock = await _rig()
     clock.advance(2_000_000)

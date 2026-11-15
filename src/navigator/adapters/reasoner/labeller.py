@@ -90,10 +90,6 @@ def prominent(
     ][:limit]
 
 
-def confirmed(found: Sequence[SceneTag], seen: Collection[str]) -> list[SceneTag]:
-    return [tag for tag in found if tag.label in seen]
-
-
 class LabellerSceneReasoner:
     def __init__(self, detector: str, segmenter: str, masker: str) -> None:
         self._names = (detector, segmenter, masker)
@@ -137,9 +133,8 @@ class LabellerSceneReasoner:
         )
         objects = self._object_tags(picture, MAX_TAGS - len(structure))
         found = [tag for tag in structure + objects if tag.outline]
-        shown = confirmed(found, self._seen)
         self._seen = frozenset(tag.label for tag in found)
-        return clean_tags(shown)
+        return clean_tags(found)
 
     async def advise(
         self, request: GuidanceRequest
