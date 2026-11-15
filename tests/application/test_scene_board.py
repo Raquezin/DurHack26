@@ -3,6 +3,7 @@ import threading
 
 from navigator.application.scene_board import SceneBoard
 from navigator.domain.geometry import Perception, SceneGeometry
+from navigator.domain.tags import SceneTag
 
 
 def perception(frame_id):
@@ -42,6 +43,14 @@ async def test_wait_newer_times_out():
     board = SceneBoard()
     board.put(perception(1))
     assert await board.wait_newer(1, timeout_s=0.01) is None
+
+
+def test_tags_round_trip():
+    board = SceneBoard()
+    assert board.latest_tags() is None
+    tags = (SceneTag("chair", ((0.5, 0.5),)),)
+    board.set_tags(123, tags)
+    assert board.latest_tags() == (123, tags)
 
 
 async def test_wait_newer_wakes_from_other_thread():

@@ -14,8 +14,10 @@ from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.hazard import HazardLevel
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
 from navigator.domain.policies.hazard import HazardThresholds
+from navigator.domain.tags import SceneTag
 
 _TURNS = {PHRASE_TEXT[PhraseId.STOP_GO_LEFT], PHRASE_TEXT[PhraseId.STOP_GO_RIGHT]}
+_CHAIR = SceneTag("chair", ((0.4, 0.4), (0.6, 0.4), (0.6, 0.9), (0.4, 0.9)))
 
 
 def _perception(distance_m, frame_id=1, t_capture_ns=1_000):
@@ -39,7 +41,7 @@ def _perception(distance_m, frame_id=1, t_capture_ns=1_000):
     )
 
 
-async def _rig():
+async def _rig(tags_source=None):
     clock = ManualClock()
     sink = RecordingAudioSink(clock=clock)
     synth = ToneSpeechSynthesizer(delay_s=0.0, seconds_per_char=0.01)
@@ -61,6 +63,7 @@ async def _rig():
         clock=clock,
         trace=LatencyTrace(),
         thresholds=HazardThresholds(),
+        tags_source=tags_source,
     )
     return monitor, events, sink
 
@@ -126,6 +129,41 @@ async def test_boxed_in_still_names_a_side_to_turn():
         geometry = replace(perception.geometry, distances_m=(1.0,) * 15)
         monitor.observe(replace(perception, geometry=geometry))
     assert events.events[1].text in _TURNS
+
+
+async def test_stop_describes_the_thing_ahead():
+    monitor, events, sink = await _rig(tags_source=lambda: (0, (_CHAIR,)))
+    monitor.observe(_perception(1.0))
+    monitor.observe(_perception(1.0, frame_id=2))
+    await asyncio.sleep(0.05)
+    texts = [
+        e.text for e in events.events if isinstance(e, UtteranceEvent)
+    ]
+    assert texts[0] in _TURNS
+    assert texts[1] == "There is a chair in front of you."
+    assert len(sink.plays) >= 2
+
+
+async def test_stale_tags_are_not_described():
+    monitor, events, sink = await _rig(
+        tags_source=lambda: (-3_000_000_000, (_CHAIR,))
+    )
+    monitor.observe(_perception(1.0))
+    monitor.observe(_perception(1.0, frame_id=2))
+    await asyncio.sleep(0.05)
+    texts = [
+        e.text for e in events.events if isinstance(e, UtteranceEvent)
+    ]
+    assert len(texts) == 1 and texts[0] in _TURNS
+
+
+async def test_stop_without_matching_tag_stays_plain():
+    far = SceneTag("chair", ((0.75, 0.4), (0.95, 0.4), (0.95, 0.9), (0.75, 0.9)))
+    monitor, events, sink = await _rig(tags_source=lambda: (0, (far,)))
+    monitor.observe(_perception(1.0))
+    monitor.observe(_perception(1.0, frame_id=2))
+    await asyncio.sleep(0.05)
+    assert len(sink.plays) == 1
 
 
 async def test_stale_utterance_dropped():

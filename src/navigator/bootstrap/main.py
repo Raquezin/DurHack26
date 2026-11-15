@@ -121,6 +121,7 @@ async def run(settings, duration_s, provided=None) -> None:
                 confirm_frames=settings.hazard_confirm_frames,
             ),
             deadline_offset_ns=offset_ns,
+            tags_source=board.latest_tags,
         )
         perception_loop = PerceptionLoop(
             source=built["frame_source"],

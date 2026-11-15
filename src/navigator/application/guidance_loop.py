@@ -166,6 +166,7 @@ class GuidanceLoop:
     def _note_tags(self, asked: SceneGeometry, tags: tuple[SceneTag, ...]) -> None:
         if not tags:
             return
+        self._board.set_tags(asked.t_capture_ns, tags)
         self._events.publish(TagsEvent(frame_id=asked.frame_id, tags=tags))
         if has_road_crossing(tags):
             self._road_until_ns = self._clock.now_ns() + _ROAD_HOLD_NS
