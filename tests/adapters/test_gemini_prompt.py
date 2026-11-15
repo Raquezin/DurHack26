@@ -7,6 +7,7 @@ from navigator.adapters.reasoner.prompt import (
     SYSTEM_PROMPT,
     distance_grid,
     first_sentence,
+    next_part,
     parse_answer,
     parse_tags,
     split_tags,
@@ -37,10 +38,12 @@ def test_system_prompt_states_division_of_labour():
     assert "nearer than 2 m" in SYSTEM_PROMPT
     assert "2 to 5 m" in SYSTEM_PROMPT
     assert "one short imperative" in SYSTEM_PROMPT
-    assert "Continue for N metres" in SYSTEM_PROMPT
-    assert "only when the way ahead is closing" in SYSTEM_PROMPT
+    assert "never give directions" in SYSTEM_PROMPT
+    assert "The first line is the instruction" in SYSTEM_PROMPT
     for phrase in GUIDANCE_PHRASES:
         assert f"{phrase.name} = {PHRASE_TEXT[phrase]}" in SYSTEM_PROMPT
+    for banned in (PhraseId.VEER_LEFT, PhraseId.VEER_RIGHT, PhraseId.TURN_LEFT, PhraseId.TURN_RIGHT):
+        assert banned.name not in SYSTEM_PROMPT
     assert "STOP" not in SYSTEM_PROMPT
 
 
@@ -108,6 +111,40 @@ def test_parse_unknown_identifier_is_not_spoken():
 def test_parse_empty():
     assert parse_answer("") is None
     assert parse_answer("  \n") is None
+
+
+def test_parse_free_text_is_capped_at_seven_words():
+    assert parse_answer("Keep going straight for about five more metres ahead.") == (
+        None,
+        "Keep going straight for about five more",
+    )
+
+
+def test_next_part_takes_the_instruction_line_first():
+    assert next_part("GO_STRAIGHT\nTAGS: car") == (None, "GO_STRAIGHT", "TAGS: car")
+    assert next_part("Bear right.\n") == (None, "Bear right.", "")
+
+
+def test_next_part_emits_a_finished_sentence_mid_line():
+    assert next_part("Bear right.") == (None, "Bear right.", "")
+    assert next_part("Bear right") is None
+
+
+def test_next_part_still_reads_a_tags_line_first():
+    assert next_part("TAGS: car, door\nGO") == (
+        (SceneTag("car"), SceneTag("door")),
+        None,
+        "GO",
+    )
+
+
+def test_next_part_waits_for_an_incomplete_tags_line():
+    assert next_part("TAGS: car, do") is None
+    assert next_part("TAGS: car, do", final=True) == (
+        (SceneTag("car"), SceneTag("do")),
+        None,
+        "",
+    )
 
 
 def test_split_tags_waits_for_the_end_of_the_line():

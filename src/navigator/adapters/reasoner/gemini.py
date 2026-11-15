@@ -1,18 +1,21 @@
+import io
 from collections.abc import AsyncIterator
 from contextlib import aclosing
 
 from google import genai
 from google.genai import types
+from PIL import Image
 
 from navigator.adapters.reasoner.prompt import (
     SYSTEM_PROMPT,
-    first_sentence,
+    next_part,
     parse_answer,
-    split_tags,
     user_text,
 )
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
 from navigator.domain.tags import SceneTag
+
+_MAX_IMAGE_SIDE = 640
 
 
 def generation_config(max_output_tokens: int) -> types.GenerateContentConfig:
@@ -26,11 +29,60 @@ def generation_config(max_output_tokens: int) -> types.GenerateContentConfig:
     )
 
 
+def scaled_jpeg(jpeg: bytes) -> bytes:
+    image = Image.open(io.BytesIO(jpeg))
+    image.thumbnail((_MAX_IMAGE_SIDE, _MAX_IMAGE_SIDE))
+    out = io.BytesIO()
+    image.save(out, format="JPEG", quality=70)
+    return out.getvalue()
+
+
 def contents(request: GuidanceRequest) -> list:
     return [
-        types.Part.from_bytes(data=request.camera_jpeg, mime_type="image/jpeg"),
+        types.Part.from_bytes(
+            data=scaled_jpeg(request.camera_jpeg), mime_type="image/jpeg"
+        ),
         user_text(request),
     ]
+
+
+def _instruction(
+    request: GuidanceRequest,
+    tags: tuple[SceneTag, ...] | None,
+    answer: str | None,
+) -> GuidanceInstruction | None:
+    base = {
+        "frame_id": request.geometry.frame_id,
+        "t_capture_ns": request.geometry.t_capture_ns,
+    }
+    if answer is not None:
+        parsed = parse_answer(answer)
+        if parsed is None:
+            return None
+        phrase, text = parsed
+        return GuidanceInstruction(phrase=phrase, text=text, tags=(), **base)
+    if tags:
+        return GuidanceInstruction(phrase=None, text="", tags=tags, **base)
+    return None
+
+
+def _drain(
+    request: GuidanceRequest,
+    buffer: str,
+    answered: bool,
+    final: bool = False,
+) -> tuple[list[GuidanceInstruction], str, bool]:
+    instructions = []
+    while (part := next_part(buffer, final=final)) is not None:
+        tags, answer, buffer = part
+        if answer is not None and answered:
+            continue
+        instruction = _instruction(request, tags, answer)
+        if instruction is None:
+            continue
+        answered = answered or answer is not None
+        instructions.append(instruction)
+    return instructions, buffer, answered
 
 
 class GeminiSceneReasoner:
@@ -48,38 +100,30 @@ class GeminiSceneReasoner:
         await self._client.aio.aclose()
         self._client = None
 
-    async def _answer(self, request: GuidanceRequest) -> tuple[tuple[SceneTag, ...], str]:
-        stream = await self._client.aio.models.generate_content_stream(
-            model=self._model, contents=contents(request), config=self._config
-        )
-        buffer = ""
-        async with aclosing(stream):
-            async for chunk in stream:
-                buffer += chunk.text or ""
-                split = split_tags(buffer)
-                if split is None:
-                    continue
-                tags, rest = split
-                sentence = first_sentence(rest)
-                if sentence:
-                    return tags, sentence
-        return split_tags(buffer, final=True)
-
     async def advise(
         self, request: GuidanceRequest
     ) -> AsyncIterator[GuidanceInstruction]:
         try:
-            tags, answer = await self._answer(request)
+            stream = await self._client.aio.models.generate_content_stream(
+                model=self._model, contents=contents(request), config=self._config
+            )
         except Exception:
             return
-        parsed = parse_answer(answer)
-        if parsed is None and not tags:
+        buffer = ""
+        answered = False
+        try:
+            async with aclosing(stream):
+                async for chunk in stream:
+                    buffer += chunk.text or ""
+                    instructions, buffer, answered = _drain(
+                        request, buffer, answered
+                    )
+                    for instruction in instructions:
+                        yield instruction
+        except Exception:
             return
-        phrase, text = parsed or (None, "")
-        yield GuidanceInstruction(
-            phrase=phrase,
-            text=text,
-            frame_id=request.geometry.frame_id,
-            t_capture_ns=request.geometry.t_capture_ns,
-            tags=tags,
+        instructions, buffer, answered = _drain(
+            request, buffer, answered, final=True
         )
+        for instruction in instructions:
+            yield instruction

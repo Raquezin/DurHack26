@@ -7,10 +7,6 @@ from navigator.domain.tags import ROAD_CROSSING, SceneTag, clean_tags
 
 GUIDANCE_PHRASES = (
     PhraseId.GO_STRAIGHT,
-    PhraseId.VEER_LEFT,
-    PhraseId.VEER_RIGHT,
-    PhraseId.TURN_LEFT,
-    PhraseId.TURN_RIGHT,
     PhraseId.PATH_CLEAR,
     PhraseId.SLOW_DOWN,
     PhraseId.DOOR_AHEAD,
@@ -21,26 +17,25 @@ SYSTEM_PROMPT = "\n".join(
     [
         "You guide a blind pedestrian who walks with a chest-mounted camera "
         "and hears your words through headphones.",
-        "A local system already warns about every obstacle nearer than 2 m. "
-        "Do not talk about those.",
-        "Your job is the route 2 to 5 m ahead: say how far the walker can "
-        "keep going, and name a direction only when the way ahead is closing "
-        "or something new blocks it — never while the current direction "
-        "still works.",
-        "Answer with one short imperative of at most eight words. No "
+        "A local system already warns about every obstacle nearer than 2 m "
+        "and gives every turn and step direction. Do not talk about those "
+        "and never give directions yourself.",
+        "Your job is the route 2 to 5 m ahead: confirm how far the way "
+        "stays open and point out only what depth cannot see — doors, "
+        "stairs, road crossings, moving people.",
+        "Answer with one short imperative of at most seven words. No "
         "preamble, no explanation.",
-        "On an open path say \"Continue for N metres\" with N the metres "
-        "ahead. When one of these phrase names fits, answer with the name "
-        "alone:",
+        "On an open path answer \"GO_STRAIGHT\". When one of these phrase "
+        "names fits, answer with the name alone:",
         *(f"{p.name} = {PHRASE_TEXT[p]}" for p in GUIDANCE_PHRASES),
         "Do not repeat a recent instruction unless the scene has changed.",
-        "Your answer has two lines. The first is TAGS: then two to six short "
-        "lowercase labels, comma separated, of what the camera sees that "
-        "matters to a walker. After each label write @ and where it is in "
-        "the picture: its row (head, torso or legs) then its column (far "
-        "left, left, ahead, right or far right), for example table@legs "
-        "left, person@torso ahead, wall@head far right, door@torso right. "
-        "The second line is the instruction.",
+        "Your answer has two lines. The first line is the instruction. The "
+        "second is TAGS: then two to six short lowercase labels, comma "
+        "separated, of what the camera sees that matters to a walker. "
+        "After each label write @ and where it is in the picture: its row "
+        "(head, torso or legs) then its column (far left, left, ahead, "
+        "right or far right), for example table@legs left, person@torso "
+        "ahead, wall@head far right, door@torso right.",
         f"Use exactly the label '{ROAD_CROSSING}' whenever the way ahead "
         "crosses a road, crosswalk, zebra crossing, tram line or any lane "
         "where vehicles may pass, even when it looks empty. The depth data "
@@ -50,6 +45,7 @@ SYSTEM_PROMPT = "\n".join(
 )
 
 _ROWS = ("head", "torso", "legs")
+_MAX_WORDS = 7
 _COL_NAMES = ("far left", "left", "ahead", "right", "far right")
 _TERMINATOR = re.compile(r"[.!?](?=\s)|(?<!\d)[.!?]$")
 _IDENTIFIER = re.compile(r"[A-Z]+(?:_[A-Z]+)+")
@@ -124,6 +120,26 @@ def first_sentence(buffer: str) -> str | None:
     return buffer[: match.end()].strip() if match else None
 
 
+def next_part(
+    buffer: str, final: bool = False
+) -> tuple[tuple[SceneTag, ...] | None, str | None, str] | None:
+    split = split_tags(buffer, final=final)
+    if split is None:
+        return None
+    tags, rest = split
+    if tags:
+        return tags, None, rest
+    line, sep, tail = rest.partition("\n")
+    if sep:
+        return None, first_sentence(line) or line.strip() or None, tail
+    sentence = first_sentence(line)
+    if sentence:
+        return None, sentence, ""
+    if final and line.strip():
+        return None, line.strip(), ""
+    return None
+
+
 def parse_answer(answer: str) -> tuple[PhraseId | None, str] | None:
     sentence = " ".join(answer.split())
     name = sentence.strip("`*\"' .").upper()
@@ -135,4 +151,7 @@ def parse_answer(answer: str) -> tuple[PhraseId | None, str] | None:
     if sentence.casefold() in _BY_TEXT:
         phrase = _BY_TEXT[sentence.casefold()]
         return phrase, PHRASE_TEXT[phrase]
+    words = sentence.split()
+    if len(words) > _MAX_WORDS:
+        sentence = " ".join(words[:_MAX_WORDS])
     return (None, sentence) if sentence else None

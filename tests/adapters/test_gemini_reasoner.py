@@ -1,8 +1,10 @@
 import asyncio
+import io
 from types import SimpleNamespace
 
 import pytest
 from google.genai import types
+from PIL import Image
 
 from navigator.adapters.reasoner import gemini
 from navigator.adapters.reasoner.gemini import GeminiSceneReasoner
@@ -67,6 +69,13 @@ def install(monkeypatch):
     return apply
 
 
+def _jpeg(width=1280, height=720):
+    image = Image.new("RGB", (width, height), (30, 60, 90))
+    out = io.BytesIO()
+    image.save(out, format="JPEG")
+    return out.getvalue()
+
+
 def _request():
     geometry = SceneGeometry(
         frame_id=9,
@@ -78,7 +87,7 @@ def _request():
         horizontal_fov_deg=70.0,
     )
     return GuidanceRequest(
-        geometry=geometry, camera_jpeg=b"\xff\xd8jpeg", recently_spoken=("Turn left.",)
+        geometry=geometry, camera_jpeg=_jpeg(), recently_spoken=("Turn left.",)
     )
 
 
@@ -102,7 +111,7 @@ async def test_first_sentence_then_stream_closed(install):
     [instruction] = await _advise()
     assert instruction.phrase is None
     assert instruction.text == "Bear right around the bench."
-    assert models.consumed == 2
+    assert models.consumed == 5
     assert models.closed
 
 
@@ -117,8 +126,9 @@ async def test_request_configuration_and_payload(install):
     assert call.config.media_resolution is types.MediaResolution.MEDIA_RESOLUTION_LOW
     assert call.config.thinking_config.thinking_level is types.ThinkingLevel.MINIMAL
     image, text = call.contents
-    assert image.inline_data.data == b"\xff\xd8jpeg"
     assert image.inline_data.mime_type == "image/jpeg"
+    sent = Image.open(io.BytesIO(image.inline_data.data))
+    assert sent.size == (640, 360)
     assert text == user_text(_request())
     assert clients[0].closed
 
@@ -153,27 +163,38 @@ async def test_consumer_cancel_closes_provider_stream(install):
     assert models.closed
 
 
-async def test_tags_line_then_instruction(install):
-    models = FakeModels(["TAGS: pavement@legs ahead, ", "road crossing@torso ahead\nROAD", "_CROSSING"])
+async def test_instruction_arrives_before_tags(install):
+    models = FakeModels(["ROAD_CROSS", "ING\nTAGS: pavement@legs ahead, ", "door"])
     install(models)
-    [instruction] = await _advise()
-    assert instruction.tags == (
+    first, second = await _advise()
+    assert first.phrase is PhraseId.ROAD_CROSSING
+    assert first.tags == ()
+    assert second.tags == (
         SceneTag("pavement", ((0.4, 2 / 3), (0.6, 2 / 3), (0.6, 1.0), (0.4, 1.0))),
-        SceneTag(
-            "road crossing",
-            ((0.4, 1 / 3), (0.6, 1 / 3), (0.6, 2 / 3), (0.4, 2 / 3)),
-        ),
+        SceneTag("door"),
     )
-    assert instruction.phrase is PhraseId.ROAD_CROSSING
+    assert second.phrase is None
+    assert second.text == ""
+
+
+async def test_tags_first_order_still_parses(install):
+    models = FakeModels(["TAGS: pavement@legs ahead, ", "door\nGO_STRAIGHT"])
+    install(models)
+    tags_instruction, instruction = await _advise()
+    assert tags_instruction.tags == (
+        SceneTag("pavement", ((0.4, 2 / 3), (0.6, 2 / 3), (0.6, 1.0), (0.4, 1.0))),
+        SceneTag("door"),
+    )
+    assert instruction.phrase is PhraseId.GO_STRAIGHT
 
 
 async def test_tags_do_not_delay_the_first_sentence(install):
     models = FakeModels(["TAGS: car\nBear", " right.", " More."])
     install(models)
-    [instruction] = await _advise()
-    assert instruction.tags == (SceneTag("car"),)
+    tags_instruction, instruction = await _advise()
+    assert tags_instruction.tags == (SceneTag("car"),)
     assert instruction.text == "Bear right."
-    assert models.consumed == 2
+    assert models.consumed == 3
 
 
 async def test_tags_without_instruction_are_still_yielded(install):

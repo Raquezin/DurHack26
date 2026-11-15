@@ -87,7 +87,7 @@ async def test_instructions_carry_request_frame(reasoner):
     for instruction in seen:
         assert instruction.frame_id == 7
         assert instruction.t_capture_ns == 123
-        assert instruction.text
+        assert instruction.text or instruction.tags
 
 
 async def test_consumer_can_stop_early(reasoner):
