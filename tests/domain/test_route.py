@@ -1,7 +1,7 @@
 import math
 
 from navigator.domain.geometry import SceneGeometry
-from navigator.domain.path import blocking_zone, edge_tangent
+from navigator.domain.path import blocking_zone, edge_tangent, vertical_fov_deg
 from navigator.domain.phrases import PhraseId
 from navigator.domain.policies.route import boundary, plan, zone_point
 from navigator.domain.policies.steering import (
@@ -26,6 +26,9 @@ def scene(columns, valid=None):
         distances_m=tuple([8.0] * COLS + columns + columns),
         valid=tuple([True] * COLS + valid + valid),
         horizontal_fov_deg=FOV,
+        vertical_fov_deg=vertical_fov_deg(FOV, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
 
 
@@ -178,6 +181,9 @@ def test_coarse_grid_route_stops_short_of_the_columns_beside_the_gap():
         distances_m=(8.0,) * 5 + (2.5, 2.5, 2.5, 6.0, 2.5) * 2,
         valid=(True,) * 15,
         horizontal_fov_deg=70.0,
+        vertical_fov_deg=vertical_fov_deg(70.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
     waypoints = routed(geometry)
     assert len(waypoints) == 2

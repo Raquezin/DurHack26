@@ -3,6 +3,7 @@ import threading
 
 from navigator.application.scene_board import SceneBoard
 from navigator.domain.geometry import Perception, SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.domain.policies.describe import tag_map
 from navigator.domain.tags import SceneTag
 
@@ -16,6 +17,9 @@ def perception(frame_id):
         distances_m=(1.0,),
         valid=(True,),
         horizontal_fov_deg=70.0,
+        vertical_fov_deg=vertical_fov_deg(70.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
     return Perception(
         geometry=geometry,

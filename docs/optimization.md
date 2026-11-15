@@ -119,7 +119,7 @@ Design notes:
 
 - **5th percentile, not minimum.** A single noisy pixel must not trigger
   "Stop". Monocular depth scatters points at object edges.
-- **Floor rejection** uses the mount's height and pitch
+- **Floor rejection** uses the lens height and pitch fitted from the frame
   ([models.md](models.md), calibration): for each image row below the
   horizon the floor is expected at a known distance. Anything clearly nearer
   is an obstacle; the rest is ground.

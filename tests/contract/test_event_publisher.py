@@ -128,10 +128,20 @@ def test_route_event_wire_format():
             boundary=((-1.11, 2.0), (-0.96, 2.0)),
             blocker=(0.0, 2.0),
             label="chair",
+            picture_line=((0.5, 1.0), (0.5, 0.6)),
+            picture_blocker=(0.5, 0.8),
         )
     )
     publisher.publish(
-        RouteEvent(frame_id=5, waypoints=((0.0, 0.0),), boundary=(), blocker=None, label=None)
+        RouteEvent(
+            frame_id=5,
+            waypoints=((0.0, 0.0),),
+            boundary=(),
+            blocker=None,
+            label=None,
+            picture_line=(),
+            picture_blocker=None,
+        )
     )
     bent, empty = (json.loads(line) for line in stream.getvalue().splitlines())
     assert bent == {
@@ -141,5 +151,7 @@ def test_route_event_wire_format():
         "boundary": [[-1.11, 2.0], [-0.96, 2.0]],
         "blocker": [0.0, 2.0],
         "label": "chair",
+        "picture_line": [[0.5, 1.0], [0.5, 0.6]],
+        "picture_blocker": [0.5, 0.8],
     }
     assert empty["blocker"] is None and empty["label"] is None

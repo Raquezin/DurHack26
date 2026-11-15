@@ -16,6 +16,8 @@ def _rig():
         rows=3,
         cols=5,
         horizontal_fov_deg=70.0,
+        mount_height_m=1.4,
+        pitch_deg=0.0,
         start_m=4.0,
         speed_mps=0.5,
     )
@@ -64,6 +66,8 @@ def test_on_perception_runs_before_events_published():
         rows=3,
         cols=5,
         horizontal_fov_deg=70.0,
+        mount_height_m=1.4,
+        pitch_deg=0.0,
         start_m=4.0,
         speed_mps=0.5,
     )

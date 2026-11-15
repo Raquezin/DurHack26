@@ -10,6 +10,9 @@ class SceneGeometry:
     distances_m: tuple[float, ...]
     valid: tuple[bool, ...]
     horizontal_fov_deg: float
+    vertical_fov_deg: float
+    mount_height_m: float
+    pitch_deg: float
 
 
 @dataclass(frozen=True, slots=True)

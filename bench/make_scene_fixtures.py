@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from navigator.domain.path import vertical_fov_deg
+
 OUT = Path(__file__).resolve().parents[1] / "fixtures" / "scenes"
 WIDTH, HEIGHT, ROWS, COLS = 512, 384, 3, 5
 FOV_DEG, EYE_M, MAX_M, PERCENTILE, MIN_HIT_FRACTION = 70.0, 1.4, 10.0, 10, 0.05
@@ -126,6 +128,9 @@ def main():
             distances_m=distances,
             valid=valid,
             horizontal_fov_deg=FOV_DEG,
+            vertical_fov_deg=round(vertical_fov_deg(FOV_DEG, WIDTH, HEIGHT), 4),
+            mount_height_m=EYE_M,
+            pitch_deg=0.0,
             expected=scene["expected"],
         )
         (OUT / f"{name}.json").write_text(json.dumps(geometry, indent=2) + "\n")

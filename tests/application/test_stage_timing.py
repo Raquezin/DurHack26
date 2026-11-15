@@ -13,6 +13,7 @@ from navigator.application.scene_board import SceneBoard
 from navigator.application.speech_arbiter import SpeechArbiter
 from navigator.domain.frame import Frame
 from navigator.domain.geometry import Perception, SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.domain.guidance import GuidanceInstruction
 from navigator.domain.phrases import PhraseId
 from navigator.domain.policies.hazard import HazardThresholds
@@ -31,6 +32,9 @@ def _geometry(frame_id, t_capture_ns=0, distances=STILL):
         distances_m=distances,
         valid=(True,) * 15,
         horizontal_fov_deg=70.0,
+        vertical_fov_deg=vertical_fov_deg(70.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
 
 

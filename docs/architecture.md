@@ -66,7 +66,7 @@ and everyone else sees forty-five numbers and two JPEGs.
 | --- | --- | --- | --- |
 | `PerceptionLoop` | `FrameSource` | Runs `ScenePerception` on the newest frame | `SceneBoard`, `EventPublisher` |
 | `HazardMonitor` | each new geometry | Applies `HazardPolicy` to obstacles inside the walking path; speaks when the alert rises, changes side or gets closer, confirmed over consecutive frames, then names the tag lying on the blocking surface when the tags still match the scene | `SpeechArbiter`, `EventPublisher` |
-| `GuidanceLoop` | `SceneBoard` | Applies `SteeringPolicy` every frame (local, no network), draws the walking line from that same decision and publishes it as a `route` event, and names the tag on the surface blocking the line after a veer or turn; applies `TriggerPolicy` and calls `SceneReasoner` in the background; speaks a cloud answer only if the scene still matches | `SpeechArbiter`, `EventPublisher` |
+| `GuidanceLoop` | `SceneBoard` | Applies `SteeringPolicy` every frame (local, no network), draws the walking line from that same decision, also projected onto the floor of the depth picture, and publishes it as a `route` event, and names the tag on the surface blocking the line after a veer or turn; applies `TriggerPolicy` and calls `SceneReasoner` in the background; speaks a cloud answer only if the scene still matches | `SpeechArbiter`, `EventPublisher` |
 | `SpeechArbiter` | utterances | Applies `ArbitrationPolicy`: priority, pre-emption, staleness, repetition; resolves audio from phrase cache or `SpeechSynthesizer` | `AudioSink`, `EventPublisher` |
 
 `SceneBoard` is the one shared in-memory structure: a thread-safe holder of
@@ -172,7 +172,7 @@ changing one is a contract change.
 | `FrameSource` | `webcam` | `camera.webcam.WebcamFrameSource` | `(clock, device, width, height, fps, fourcc)` | context manager |
 | `FrameSource` | `replay` | `camera.replay.ReplayFrameSource` | `(clock, session_dir)` | context manager |
 | `FrameSource` | `phone` | `phone.camera.PhoneFrameSource` | `(clock, link)` | — |
-| `ScenePerception` | `scripted` | `perception.scripted.ScriptedScenePerception` | `(clock, rows, cols, horizontal_fov_deg, start_m, speed_mps)` | — |
+| `ScenePerception` | `scripted` | `perception.scripted.ScriptedScenePerception` | `(clock, rows, cols, horizontal_fov_deg, mount_height_m, pitch_deg, start_m, speed_mps)` | — |
 | `ScenePerception` | `gpu` | `perception.gpu.GpuScenePerception` | `(clock, model, input_long_side, rows, cols, horizontal_fov_deg, scale, mount_height_m, pitch_deg)` | context manager |
 | `ScenePerception` | `replay` | `perception.replay.ReplayScenePerception` | `(clock, session_dir)` | — |
 | `SceneReasoner` | `scripted` | `reasoner.scripted.ScriptedSceneReasoner` | `(text, phrase, delay_s)` | — |

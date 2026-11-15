@@ -37,6 +37,9 @@ def _geometry_line(index, geometry):
             ],
             "valid": list(geometry.valid),
             "horizontal_fov_deg": geometry.horizontal_fov_deg,
+            "vertical_fov_deg": round(geometry.vertical_fov_deg, 4),
+            "mount_height_m": geometry.mount_height_m,
+            "pitch_deg": round(geometry.pitch_deg, 2),
         }
     )
 

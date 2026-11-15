@@ -10,6 +10,7 @@ from navigator.adapters.reasoner import gemini
 from navigator.adapters.reasoner.gemini import GeminiSceneReasoner
 from navigator.adapters.reasoner.prompt import SYSTEM_PROMPT, user_text
 from navigator.domain.geometry import SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.domain.guidance import GuidanceRequest
 from navigator.domain.phrases import PhraseId
 from navigator.domain.tags import SceneTag
@@ -85,6 +86,9 @@ def _request():
         distances_m=(4.0,) * 15,
         valid=(True,) * 15,
         horizontal_fov_deg=70.0,
+        vertical_fov_deg=vertical_fov_deg(70.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
     return GuidanceRequest(
         geometry=geometry, camera_jpeg=_jpeg(), recently_spoken=("Turn left.",)

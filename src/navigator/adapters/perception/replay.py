@@ -43,6 +43,9 @@ class ReplayScenePerception:
             ),
             valid=tuple(record["valid"]),
             horizontal_fov_deg=record["horizontal_fov_deg"],
+            vertical_fov_deg=record["vertical_fov_deg"],
+            mount_height_m=record["mount_height_m"],
+            pitch_deg=record["pitch_deg"],
         )
         camera_jpeg = depth_jpeg = None
         if with_previews:

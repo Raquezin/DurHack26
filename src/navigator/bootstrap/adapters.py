@@ -65,6 +65,8 @@ def _perception_scripted(settings, clock, secrets, resources):
         rows=settings.grid_rows,
         cols=settings.grid_cols,
         horizontal_fov_deg=settings.hfov_deg,
+        mount_height_m=settings.mount_height_m,
+        pitch_deg=settings.pitch_deg,
         start_m=settings.scripted_start_m,
         speed_mps=settings.scripted_speed_mps,
     )

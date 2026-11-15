@@ -99,6 +99,48 @@ def _reach(
     return max(_MIN_LEG_M, reach)
 
 
+def _project(geometry: SceneGeometry, point: Point) -> Point:
+    x_m, z_m = point
+    t_h = math.tan(math.radians(geometry.horizontal_fov_deg) / 2)
+    t_v = math.tan(math.radians(geometry.vertical_fov_deg) / 2)
+    pitch = math.radians(geometry.pitch_deg)
+    u = 0.5 + (x_m / z_m) / (2 * t_h)
+    ray_y = (geometry.mount_height_m / z_m - math.sin(pitch)) / math.cos(pitch)
+    return u, 0.5 + ray_y / (2 * t_v)
+
+
+def floor_mark(geometry: SceneGeometry, point: Point) -> Point:
+    u, v = _project(geometry, point)
+    return round(u, 4), round(min(max(v, 0.0), 1.0), 4)
+
+
+def floor_line(
+    geometry: SceneGeometry, waypoints: tuple[Point, ...]
+) -> tuple[Point, ...]:
+    pitch = math.radians(geometry.pitch_deg)
+    t_v = math.tan(math.radians(geometry.vertical_fov_deg) / 2)
+    den = t_v * math.cos(pitch) + math.sin(pitch)
+    if den <= 0 or len(waypoints) < 2:
+        return ()
+    z_min = geometry.mount_height_m / den
+    index = next(
+        (i for i, (_, z) in enumerate(waypoints) if z >= z_min), len(waypoints)
+    )
+    if index == len(waypoints):
+        return ()
+    a, b = waypoints[index - 1], waypoints[index]
+    if b[1] == z_min:
+        start = b
+        rest = waypoints[index + 1 :]
+    else:
+        start = (a[0] + (b[0] - a[0]) * (z_min - a[1]) / (b[1] - a[1]), z_min)
+        rest = waypoints[index:]
+    return tuple(
+        (round(u, 4), round(v, 4))
+        for u, v in (_project(geometry, p) for p in (start, *rest))
+    )
+
+
 def plan(
     geometry: SceneGeometry,
     settings: SteeringSettings,

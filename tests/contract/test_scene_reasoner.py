@@ -71,6 +71,9 @@ def _request():
         ),
         valid=tuple(data["valid"]),
         horizontal_fov_deg=data["horizontal_fov_deg"],
+        vertical_fov_deg=data["vertical_fov_deg"],
+        mount_height_m=data["mount_height_m"],
+        pitch_deg=data["pitch_deg"],
     )
     return GuidanceRequest(
         geometry=geometry,

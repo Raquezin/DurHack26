@@ -6,6 +6,7 @@ from test_guidance_loop import (
     CollectingArbiter,
     _feed,
     _loop,
+    _perception,
 )
 
 from navigator.adapters.clock.manual import ManualClock
@@ -13,6 +14,7 @@ from navigator.adapters.ui.collecting import CollectingEventPublisher
 from navigator.domain.events import RouteEvent
 from navigator.domain.guidance import GuidanceInstruction
 from navigator.domain.phrases import PhraseId
+from navigator.domain.policies.route import floor_line, floor_mark
 from navigator.domain.policies.trigger import TriggerSettings
 from navigator.domain.speech import Priority
 from navigator.domain.tags import SceneTag
@@ -58,6 +60,9 @@ async def test_open_path_publishes_a_straight_route_every_frame():
     assert routes[-1].waypoints == ((0.0, 0.0), (0.0, 4.0))
     assert routes[-1].blocker == (0.0, 4.0)
     assert routes[-1].label is None
+    geometry = _perception(0).geometry
+    assert routes[-1].picture_blocker == floor_mark(geometry, routes[-1].blocker)
+    assert routes[-1].picture_line == floor_line(geometry, routes[-1].waypoints)
     assert len(routes[-1].boundary) == 10
 
 

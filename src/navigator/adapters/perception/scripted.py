@@ -3,6 +3,7 @@ import math
 
 from navigator.domain.frame import Frame
 from navigator.domain.geometry import Perception, SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.ports.clock import Clock
 
 _PREVIEW_WIDTH = 160
@@ -15,6 +16,8 @@ class ScriptedScenePerception:
         rows: int,
         cols: int,
         horizontal_fov_deg: float,
+        mount_height_m: float,
+        pitch_deg: float,
         start_m: float,
         speed_mps: float,
     ) -> None:
@@ -22,6 +25,8 @@ class ScriptedScenePerception:
         self._rows = rows
         self._cols = cols
         self._hfov = horizontal_fov_deg
+        self._mount_height_m = mount_height_m
+        self._pitch_deg = pitch_deg
         self._start_m = start_m
         self._speed_mps = speed_mps
         self._t0_ns: int | None = None
@@ -42,6 +47,9 @@ class ScriptedScenePerception:
             distances_m=(distance,) * (self._rows * self._cols),
             valid=(True,) * (self._rows * self._cols),
             horizontal_fov_deg=self._hfov,
+            vertical_fov_deg=vertical_fov_deg(self._hfov, frame.width, frame.height),
+            mount_height_m=self._mount_height_m,
+            pitch_deg=self._pitch_deg,
         )
         camera_jpeg = None
         depth_jpeg = None

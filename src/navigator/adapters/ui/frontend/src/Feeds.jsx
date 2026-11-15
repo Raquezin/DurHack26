@@ -85,8 +85,9 @@ export function Feeds({ feeds, route, hazard, tags, link }) {
         <div className="picture">
           <canvas ref={feeds.depth} aria-label="depth" />
           <Tags tags={tags} motion={feeds.motion} />
+          <canvas ref={route.overlay} className="path" aria-label="path on depth" />
         </div>
-        <figcaption>Depth</figcaption>
+        <figcaption>Depth + SAM + Path</figcaption>
       </figure>
       <Route route={route} />
     </section>

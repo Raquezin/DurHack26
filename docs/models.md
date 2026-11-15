@@ -106,8 +106,9 @@ Monocular metric depth is only as good as the camera model it is given.
    mark at 1 m, 2 m and 3 m. Fit one scalar correction and store it in the
    configuration. This is mandatory for the fallback model and a sanity
    check for the primary.
-3. **Floor model.** Record camera height and pitch for the mount (chest or
-   head). The zone reduction uses them to tell floor from obstacle
+3. **Floor model.** Lens height and pitch are fitted per frame from the
+   farthest surface below the horizon, mount height the prior, last fit
+   held when no floor shows. Zone reduction tells floor from obstacle
    ([optimization.md](optimization.md), kernel K2).
 
 ### Runtime backend
@@ -295,5 +296,4 @@ Results (ours, November 2026):
   https://elevenlabs.io/docs/eleven-api/guides/how-to/best-practices/latency-optimization
 - ElevenLabs WebSocket guide —
   https://elevenlabs.io/docs/eleven-api/guides/how-to/websockets/realtime-tts
-- Independent TTS benchmarks — https://breezeblue.ai/benchmarks/tts-latency
-  and https://onepin.ai/blog/streaming-tts-latency-ttfb-2026
+- Independent TTS benchmarks — https://breezeblue.ai/benchmarks/tts-latency and https://onepin.ai/blog/streaming-tts-latency-ttfb-2026

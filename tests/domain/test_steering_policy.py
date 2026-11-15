@@ -1,4 +1,5 @@
 from navigator.domain.geometry import SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.domain.phrases import PhraseId
 from navigator.domain.policies.steering import (
     SteeringSettings,
@@ -23,6 +24,9 @@ def scene(torso_and_legs, head=None):
         distances_m=tuple(head + torso_and_legs + torso_and_legs),
         valid=(True,) * 15,
         horizontal_fov_deg=58.0,
+        vertical_fov_deg=vertical_fov_deg(58.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
 
 
@@ -152,6 +156,9 @@ def fine(columns):
         frame_id=1, t_capture_ns=0, rows=3, cols=15,
         distances_m=tuple([8.0] * 15 + list(columns) * 2),
         valid=(True,) * 45, horizontal_fov_deg=58.0,
+ vertical_fov_deg=vertical_fov_deg(58.0, 640, 480),
+ mount_height_m=1.4,
+ pitch_deg=0.0,
     )
 
 

@@ -1,6 +1,6 @@
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.hazard import Bearing
-from navigator.domain.path import blocking_zone
+from navigator.domain.path import blocking_zone, vertical_fov_deg
 from navigator.domain.policies.describe import (
     blocker_tag,
     describe,
@@ -29,6 +29,9 @@ def _geometry(columns=(FAR, FAR, 1.0, FAR, FAR), t_capture_ns=0, cols=5):
         distances_m=(FAR,) * cols + tuple(columns) * 2,
         valid=(True,) * (3 * cols),
         horizontal_fov_deg=58.0,
+        vertical_fov_deg=vertical_fov_deg(58.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
 
 
@@ -122,6 +125,9 @@ def test_only_the_near_surface_counts_not_what_stands_behind_it():
         distances_m=(FAR,) * 5 + (FAR, FAR, 4.0, FAR, FAR) + (FAR, FAR, 1.0, FAR, FAR),
         valid=(True,) * 15,
         horizontal_fov_deg=58.0,
+        vertical_fov_deg=vertical_fov_deg(58.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
     behind = SceneTag("door", _outline(0.4, 0.34, 0.6, 0.66))
     assert _named([behind], stepped) is None

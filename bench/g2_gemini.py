@@ -36,6 +36,9 @@ def session_requests(session: Path):
             distances_m=tuple(math.inf if d is None else d for d in g["distances_m"]),
             valid=tuple(g["valid"]),
             horizontal_fov_deg=g["horizontal_fov_deg"],
+            vertical_fov_deg=g["vertical_fov_deg"],
+            mount_height_m=g["mount_height_m"],
+            pitch_deg=g["pitch_deg"],
         )
         jpeg = (session / "frames" / f"{g['frame_id']:05d}.jpg").read_bytes()
         yield GuidanceRequest(geometry=geometry, camera_jpeg=jpeg, recently_spoken=())

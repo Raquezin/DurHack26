@@ -19,6 +19,8 @@ def _scripted():
         rows=ROWS,
         cols=COLS,
         horizontal_fov_deg=70.0,
+        mount_height_m=1.4,
+        pitch_deg=0.0,
         start_m=4.0,
         speed_mps=0.5,
     )

@@ -1,6 +1,7 @@
 import math
 
 from navigator.domain.geometry import SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.domain.hazard import Bearing, HazardLevel
 from navigator.domain.policies.hazard import (
     AlertState,
@@ -22,6 +23,9 @@ def geometry(distances, valid=None, rows=3, cols=5):
         distances_m=tuple(distances),
         valid=tuple(valid),
         horizontal_fov_deg=70.0,
+        vertical_fov_deg=vertical_fov_deg(70.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
 
 

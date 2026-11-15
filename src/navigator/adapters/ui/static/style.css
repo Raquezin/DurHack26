@@ -74,6 +74,12 @@ figure {
   object-fit: cover;
 }
 
+.picture canvas.path {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 figcaption {
   display: flex;
   justify-content: space-between;
@@ -123,7 +129,7 @@ figcaption .link[data-state="offline"] { color: var(--stop); }
   color: var(--muted);
 }
 
-.source[data-source="hazard"] { color: var(--stop); }
+.source[data-source="Hazard"] { color: var(--stop); }
 
 .text {
   margin: 0;

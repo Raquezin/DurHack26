@@ -60,6 +60,8 @@ class RouteEvent:
     boundary: tuple[tuple[float, float], ...]
     blocker: tuple[float, float] | None
     label: str | None
+    picture_line: tuple[tuple[float, float], ...]
+    picture_blocker: tuple[float, float] | None
     type: ClassVar[str] = "route"
 
 

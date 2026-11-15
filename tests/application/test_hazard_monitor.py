@@ -11,6 +11,7 @@ from navigator.application.phrase_cache import PhraseCache
 from navigator.application.speech_arbiter import SpeechArbiter
 from navigator.domain.events import HazardEvent, Outcome, UtteranceEvent
 from navigator.domain.geometry import Perception, SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.domain.hazard import HazardLevel
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
 from navigator.domain.policies.describe import tag_map
@@ -34,6 +35,9 @@ def _perception(distance_m, frame_id=1, t_capture_ns=1_000):
         distances_m=tuple(distances),
         valid=(True,) * 15,
         horizontal_fov_deg=70.0,
+        vertical_fov_deg=vertical_fov_deg(70.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
     return Perception(
         geometry=geometry,
@@ -128,6 +132,9 @@ async def test_caution_names_the_side():
         frame_id=1, t_capture_ns=1_000, rows=3, cols=15,
         distances_m=tuple(distances), valid=(True,) * 45,
         horizontal_fov_deg=58.0,
+        vertical_fov_deg=vertical_fov_deg(58.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
     for frame_id in (1, 2):
         g = replace(geometry, frame_id=frame_id)

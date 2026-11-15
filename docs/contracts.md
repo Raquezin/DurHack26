@@ -46,6 +46,9 @@ class SceneGeometry:
     distances_m: tuple[float, ...]
     valid: tuple[bool, ...]
     horizontal_fov_deg: float
+    vertical_fov_deg: float
+    mount_height_m: float
+    pitch_deg: float
 
 @dataclass(frozen=True, slots=True)
 class Perception:
@@ -104,6 +107,7 @@ class PcmChunk:
 | | `distances_m` | Row-major, length `rows × cols`. Robust nearest non-floor surface in the zone. `inf` when nothing is within 10 m |
 | | `valid` | False when the zone had too few usable pixels; its distance must then be ignored |
 | | `horizontal_fov_deg` | Lets consumers turn a column into a bearing |
+| | `vertical_fov_deg`, `mount_height_m`, `pitch_deg` | Camera pose the floor model used for this frame: vertical field of view, lens height above the floor, downward tilt. Lets consumers place a floor point in the picture |
 | `Perception` | `t_ready_ns` | When the geometry became available |
 | | `camera_jpeg`, `depth_jpeg` | Previews; `None` on frames where they were skipped |
 | `GuidanceRequest` | `recently_spoken` | Last few spoken texts, newest last, so the reasoner does not repeat itself |
@@ -116,9 +120,7 @@ Grid orientation:
 
 | | col 0 | col 1 | col 2 | col 3 | col 4 |
 | --- | --- | --- | --- | --- | --- |
-| row 0 — head height | far left | left | ahead | right | far right |
-| row 1 — torso | far left | left | ahead | right | far right |
-| row 2 — legs, low obstacles | far left | left | ahead | right | far right |
+| rows 0–2 — head height, torso, legs and low obstacles | far left | left | ahead | right | far right |
 
 Enumerations:
 
@@ -240,7 +242,7 @@ WebSocket, JSON events are text messages and previews are binary messages.
 | `hazard` | `level`, `bearing`, `distance_m`, `frame_id` | `HazardMonitor` |
 | `guidance_text` | `request_id`, `delta`, `final` | `GuidanceLoop` |
 | `tags` | `frame_id`, `tags` (each `label`, `outline`) | `GuidanceLoop` |
-| `route` | `frame_id` and the walking line seen from above; every point is `(x_m, z_m)` in metres from the camera, `x_m` to the user's right, `z_m` ahead. `waypoints` starts at `(0, 0)`: one leg on an open path, otherwise a bend toward the side steering chose and then straight on while that lane stays clear, cut short when the gap is too tight to walk through; the origin alone when the view ahead is unknown. `boundary` has two points per grid column, left edge then right edge, at the depth that column is clear to (`0` when unknown), so the origin plus `boundary` outlines the free space. `blocker` is the nearest surface inside the walking lane or `null`; `label` is the tag lying on it or `null` | `GuidanceLoop` |
+| `route` | `frame_id` and the walking line seen from above; every point is `(x_m, z_m)` in metres from the camera, `x_m` to the user's right, `z_m` ahead. `waypoints` starts at `(0, 0)`: one leg on an open path, otherwise a bend toward the side steering chose and then straight on while that lane stays clear, cut short when the gap is too tight to walk through; the origin alone when the view ahead is unknown. `boundary` has two points per grid column, left edge then right edge, at the depth that column is clear to (`0` when unknown), so the origin plus `boundary` outlines the free space. `blocker` is the nearest surface inside the walking lane or `null`; `label` is the tag lying on it or `null`. `picture_line` is the visible part of `waypoints` where it lies on the floor in the picture, as (x, y) fractions of the width and height, empty when the floor under the line is out of view; `picture_blocker` is the blocker's floor contact in the same units, held on the bottom edge when it is below the frame, or `null` | `GuidanceLoop` |
 | `utterance` | `text`, `priority`, `outcome`, `age_ms` | `SpeechArbiter` |
 | `timing` | stage name → p50, p95, p99 in ms | every service |
 | `preview` | `kind` (`camera` or `depth`), `frame_id`, `jpeg` | `PerceptionLoop` |
@@ -276,11 +278,9 @@ Every port has a fake that needs no hardware, no network and no keys.
 Fixtures:
 
 - `fixtures/scenes/` — hand-written `SceneGeometry` samples with a matching
-  JPEG: clear corridor, wall ahead at 1 m, obstacle left, doorway. Written in
-  Phase 0. Used for policy tests and prompt development.
+  JPEG: clear corridor, wall ahead at 1 m, obstacle left, doorway.
 - `fixtures/sessions/<name>/` — a recorded walk: frames plus one
-  `SceneGeometry` per frame as JSON lines. Recorded by the perception owner
-  at milestone M1 and replayed by everyone.
+  `SceneGeometry` per frame as JSON lines, replayed by everyone.
 
 ## 8. Contract tests
 

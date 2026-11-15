@@ -38,5 +38,8 @@
     true
   ],
   "horizontal_fov_deg": 70.0,
+  "vertical_fov_deg": 55.4129,
+  "mount_height_m": 1.4,
+  "pitch_deg": 0.0,
   "expected": "PATH_CLEAR"
 }

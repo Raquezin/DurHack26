@@ -112,7 +112,9 @@ debugging, and judges:
   from Gemini, which places them by zone, or with
   `--adapter scene_reasoner=labeller` from local models that need no
   network: an object detector whose boxes prompt SAM 2 for the shapes, and
-  a segmentation model for walls, doors and stairs. A road crossing is red: depth cannot see a road, so
+  a segmentation model for walls, doors and stairs. The walking line is also
+  drawn on the floor of the depth picture up to what blocks it, with its
+  label and distance. A road crossing is red: depth cannot see a road, so
   that tag is what stops "keep going straight".
 - **Chat/panel:** streaming reasoning output / instruction log (what the VLM
   "thinks", what was spoken, what was dropped and why).

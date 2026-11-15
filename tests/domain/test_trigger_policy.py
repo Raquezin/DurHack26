@@ -1,4 +1,5 @@
 from navigator.domain.geometry import SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.domain.policies.trigger import (
     TriggerSettings,
     should_request,
@@ -18,6 +19,9 @@ def scene(distances):
         distances_m=tuple(distances),
         valid=(True,) * 15,
         horizontal_fov_deg=58.0,
+        vertical_fov_deg=vertical_fov_deg(58.0, 640, 480),
+        mount_height_m=1.4,
+        pitch_deg=0.0,
     )
 
 

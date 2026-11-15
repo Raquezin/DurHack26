@@ -6,7 +6,7 @@ from fastforks import depth as fastforks_depth
 
 from navigator.adapters.perception.previews import PreviewEncoder
 from navigator.adapters.perception.zones import (
-    estimate_pitch_deg,
+    fit_floor,
     floor_depth,
     focal_px,
     intrinsics,
@@ -14,11 +14,12 @@ from navigator.adapters.perception.zones import (
 )
 from navigator.domain.frame import Frame
 from navigator.domain.geometry import Perception, SceneGeometry
+from navigator.domain.path import vertical_fov_deg
 from navigator.ports.clock import Clock
 
 WARM_UP_PASSES = 20
 WARM_UP_SHAPE = (480, 640)
-PITCH_SMOOTHING = 0.1
+FLOOR_SMOOTHING = 0.1
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +52,7 @@ class GpuScenePerception:
         self._hfov = horizontal_fov_deg
         self._scale = scale
         self._mount_height_m = mount_height_m
+        self._height_m = mount_height_m
         self._initial_pitch_deg = pitch_deg
         self._pitch_deg = pitch_deg
         self._device = torch.device("cuda")
@@ -84,6 +86,7 @@ class GpuScenePerception:
             self.perceive(frame, with_previews=index % 2 == 0)
         torch.cuda.synchronize()
         self._pitch_deg = self._initial_pitch_deg
+        self._height_m = self._mount_height_m
 
     def perceive(self, frame: Frame, with_previews: bool) -> Perception:
         slot = self._slot(frame.height, frame.width)
@@ -108,6 +111,9 @@ class GpuScenePerception:
             distances_m=tuple(values[:zones]),
             valid=tuple(v > 0.5 for v in values[zones:]),
             horizontal_fov_deg=self._hfov,
+            vertical_fov_deg=vertical_fov_deg(self._hfov, frame.width, frame.height),
+            mount_height_m=self._height_m,
+            pitch_deg=self._pitch_deg,
         )
         t_ready_ns = self._clock.now_ns()
         camera_jpeg = depth_jpeg = None
@@ -121,11 +127,13 @@ class GpuScenePerception:
         )
 
     def _floor(self, depth: torch.Tensor, usable: torch.Tensor, focal: float) -> torch.Tensor:
-        measured = estimate_pitch_deg(depth, usable, focal, self._mount_height_m)
-        if measured is not None:
-            self._pitch_deg += PITCH_SMOOTHING * (measured - self._pitch_deg)
+        fitted = fit_floor(depth, usable, focal, self._mount_height_m)
+        if fitted is not None:
+            pitch_deg, height_m = fitted
+            self._pitch_deg += FLOOR_SMOOTHING * (pitch_deg - self._pitch_deg)
+            self._height_m += FLOOR_SMOOTHING * (height_m - self._height_m)
         return floor_depth(
-            depth.shape[0], focal, self._mount_height_m, self._pitch_deg, self._device
+            depth.shape[0], focal, self._height_m, self._pitch_deg, self._device
         )
 
     @property

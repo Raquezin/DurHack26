@@ -43,10 +43,10 @@ export function App() {
       );
       const source =
         event.priority === "hazard"
-          ? "hazard"
+          ? "Hazard"
           : guidanceTexts.current.some((entry) => entry.text === event.text)
-            ? "gemini"
-            : "local";
+            ? "Gemini"
+            : "Local";
       setLabel({ source, ageMs: Math.round(event.age_ms) });
       speechTimer.current = setTimeout(
         stopSpeaking,

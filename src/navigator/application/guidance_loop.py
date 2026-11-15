@@ -11,7 +11,13 @@ from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
 from navigator.domain.path import blocking_zone
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId, continue_for
 from navigator.domain.policies.describe import blocker_tag, tag_map
-from navigator.domain.policies.route import boundary, plan, zone_point
+from navigator.domain.policies.route import (
+    boundary,
+    floor_line,
+    floor_mark,
+    plan,
+    zone_point,
+)
 from navigator.domain.policies.steering import (
     SteeringSettings,
     SteeringState,
@@ -123,13 +129,19 @@ class GuidanceLoop:
             self._steering.half_width_m,
             self._settings,
         )
+        waypoints = plan(geometry, self._steering, run)
+        blocker = zone and zone_point(geometry, zone[2], zone[0])
         self._events.publish(
             RouteEvent(
                 frame_id=geometry.frame_id,
-                waypoints=plan(geometry, self._steering, run),
+                waypoints=waypoints,
                 boundary=boundary(geometry, self._steering),
-                blocker=zone and zone_point(geometry, zone[2], zone[0]),
+                blocker=blocker,
                 label=tag.label if tag else None,
+                picture_line=floor_line(geometry, waypoints),
+                picture_blocker=(
+                    floor_mark(geometry, blocker) if blocker else None
+                ),
             )
         )
         return (tag, zone[2]) if tag else None

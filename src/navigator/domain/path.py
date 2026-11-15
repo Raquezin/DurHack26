@@ -6,6 +6,12 @@ from navigator.domain.hazard import Bearing
 _BEARINGS = {-1: Bearing.LEFT, 0: Bearing.AHEAD, 1: Bearing.RIGHT}
 
 
+def vertical_fov_deg(horizontal_fov_deg: float, width: int, height: int) -> float:
+    return math.degrees(
+        2 * math.atan(math.tan(math.radians(horizontal_fov_deg) / 2) * height / width)
+    )
+
+
 def edge_tangent(edge: int, cols: int, horizontal_fov_deg: float) -> float:
     return (2 * edge / cols - 1) * math.tan(math.radians(horizontal_fov_deg) / 2)
 

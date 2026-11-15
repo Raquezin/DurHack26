@@ -32,6 +32,9 @@ def write_session(path, count=3, width=32, height=24):
                 "distances_m": [None] + [1.0 + index] * 14,
                 "valid": [False] + [True] * 14,
                 "horizontal_fov_deg": 70.0,
+                "vertical_fov_deg": 55.0,
+                "mount_height_m": 1.4,
+                "pitch_deg": 0.0,
             }
         )
     for name, rows in (("frames.jsonl", frames), ("geometry.jsonl", geometry)):

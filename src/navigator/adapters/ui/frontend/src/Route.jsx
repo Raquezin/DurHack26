@@ -36,6 +36,63 @@ function dot(context, [x, y], radius, fill, stroke, width) {
   context.stroke();
 }
 
+function obstacleText(route) {
+  return `${route.label ?? "obstacle"} ${route.blocker[1].toFixed(1)} m`;
+}
+
+function drawOverlay(canvas, route) {
+  const ratio = fit(canvas);
+  const context = canvas.getContext("2d");
+  const { width, height } = canvas;
+  const pixel = ([u, v]) => [u * width, v * height];
+  context.clearRect(0, 0, width, height);
+  context.font = `${11 * ratio}px Geist, system-ui, sans-serif`;
+  context.textBaseline = "middle";
+
+  const line = route.picture_line.map(pixel);
+  if (line.length >= 2) {
+    context.lineJoin = "round";
+    context.lineCap = "round";
+    trace(context, line);
+    context.lineWidth = 3 * ratio;
+    context.strokeStyle = "rgb(28 27 25 / 0.55)";
+    context.stroke();
+    context.lineWidth = 1.5 * ratio;
+    context.strokeStyle = FREE;
+    context.stroke();
+    dot(
+      context,
+      line[line.length - 1],
+      2.5 * ratio,
+      FREE,
+      "rgb(28 27 25 / 0.55)",
+      ratio,
+    );
+  }
+
+  if (route.picture_blocker) {
+    const [x, y] = pixel(route.picture_blocker);
+    dot(context, [x, y], 5 * ratio, "rgb(196 64 47 / 0.18)", STOP, 1.5 * ratio);
+    const text = obstacleText(route);
+    const padX = 6 * ratio;
+    const pillW = context.measureText(text).width + 2 * padX;
+    const pillH = 16 * ratio;
+    const gapX = 11 * ratio;
+    const left = route.picture_blocker[0] > 0.5;
+    let pillX = left ? x - gapX - pillW : x + gapX;
+    let pillY = y - pillH / 2;
+    pillX = Math.min(Math.max(pillX, 0), width - pillW);
+    pillY = Math.min(Math.max(pillY, 0), height - pillH);
+    context.beginPath();
+    context.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+    context.fillStyle = FREE;
+    context.fill();
+    context.fillStyle = STOP;
+    context.textAlign = "left";
+    context.fillText(text, pillX + padX, pillY + pillH / 2);
+  }
+}
+
 export function drawRoute(canvas, route) {
   const ratio = fit(canvas);
   const context = canvas.getContext("2d");
@@ -83,7 +140,7 @@ export function drawRoute(canvas, route) {
   if (route.blocker) {
     const [x, y] = place(route.blocker);
     dot(context, [x, y], 9 * ratio, "rgb(196 64 47 / 0.18)", STOP, 2.5 * ratio);
-    const text = `${route.label ?? "obstacle"} ${route.blocker[1].toFixed(1)} m`;
+    const text = obstacleText(route);
     const onLeft = route.blocker[0] < 0;
     context.fillStyle = STOP;
     context.textAlign = onLeft ? "right" : "left";
@@ -93,10 +150,12 @@ export function drawRoute(canvas, route) {
 
 export function useRoute() {
   const canvas = useRef(null);
+  const overlay = useRef(null);
   const onRoute = useCallback((event) => {
     if (canvas.current) drawRoute(canvas.current, event);
+    if (overlay.current) drawOverlay(overlay.current, event);
   }, []);
-  return { canvas, onRoute };
+  return { canvas, overlay, onRoute };
 }
 
 export function Route({ route }) {
