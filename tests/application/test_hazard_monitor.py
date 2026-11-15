@@ -114,14 +114,19 @@ async def test_caution_speaks_once_per_approach():
 
 async def test_caution_names_the_side():
     monitor, events, sink = await _rig()
+    distances = [5.0] * 45
+    for row in range(3):
+        distances[row * 15 + 5] = 1.8
+    geometry = SceneGeometry(
+        frame_id=1, t_capture_ns=1_000, rows=3, cols=15,
+        distances_m=tuple(distances), valid=(True,) * 45,
+        horizontal_fov_deg=58.0,
+    )
     for frame_id in (1, 2):
-        perception = _perception(1.8, frame_id=frame_id)
-        distances = list(perception.geometry.distances_m)
-        for row in range(3):
-            distances[row * 5 + 1] = 1.8
-            distances[row * 5 + 2] = 5.0
-        geometry = replace(perception.geometry, distances_m=tuple(distances))
-        monitor.observe(replace(perception, geometry=geometry))
+        g = replace(geometry, frame_id=frame_id)
+        monitor.observe(
+            Perception(geometry=g, t_ready_ns=1_000, camera_jpeg=None, depth_jpeg=None)
+        )
     texts = [
         e.text for e in events.events if isinstance(e, UtteranceEvent)
     ]

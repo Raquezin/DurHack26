@@ -7,12 +7,10 @@ def _edge_tangent(edge: int, cols: int, horizontal_fov_deg: float) -> float:
     return (2 * edge / cols - 1) * math.tan(math.radians(horizontal_fov_deg) / 2)
 
 
-def inner_tangent(col: int, cols: int, horizontal_fov_deg: float) -> float:
+def centre_tangent(col: int, cols: int, horizontal_fov_deg: float) -> float:
     left = _edge_tangent(col, cols, horizontal_fov_deg)
     right = _edge_tangent(col + 1, cols, horizontal_fov_deg)
-    if left <= 0 <= right:
-        return 0.0
-    return min(abs(left), abs(right))
+    return abs(left + right) / 2
 
 
 def gap_width_m(geometry: SceneGeometry, first: int, last: int, distance_m: float) -> float:
@@ -29,7 +27,7 @@ def side(col: int, cols: int) -> int:
 def in_path(
     geometry: SceneGeometry, col: int, distance_m: float, half_width_m: float
 ) -> bool:
-    tangent = inner_tangent(col, geometry.cols, geometry.horizontal_fov_deg)
+    tangent = centre_tangent(col, geometry.cols, geometry.horizontal_fov_deg)
     return distance_m * tangent < half_width_m
 
 

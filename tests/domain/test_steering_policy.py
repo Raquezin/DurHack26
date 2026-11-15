@@ -96,8 +96,8 @@ def test_non_directional_answers_always_permitted():
 
 
 def test_neighbour_obstacle_inside_the_path_blocks_it():
-    g = scene([8.0, 2.5, 8.0, 8.0, 8.0])
-    assert path_clearance(g, S) == 2.5
+    g = scene([8.0, 1.2, 8.0, 8.0, 8.0])
+    assert path_clearance(g, S) == 1.2
 
 
 def _run(phrases, step_s=0.1):

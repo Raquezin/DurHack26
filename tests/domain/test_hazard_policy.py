@@ -25,11 +25,11 @@ def geometry(distances, valid=None, rows=3, cols=5):
     )
 
 
-def corridor(distance, col, far=5.0):
-    distances = [far] * 15
+def corridor(distance, col, far=5.0, cols=5):
+    distances = [far] * (3 * cols)
     for row in range(3):
-        distances[row * 5 + col] = distance
-    return geometry(distances)
+        distances[row * cols + col] = distance
+    return geometry(distances, cols=cols)
 
 
 def test_clear_scene_no_alert():
@@ -78,7 +78,7 @@ def test_far_column_counts_once_it_reaches_the_path():
 
 
 def test_wider_path_catches_more():
-    assert evaluate(corridor(1.5, 0), HazardThresholds(half_width_m=0.7)) is not None
+    assert evaluate(corridor(1.2, 0), HazardThresholds(half_width_m=0.7)) is not None
 
 
 def test_bearing_per_column():
@@ -182,8 +182,8 @@ def test_bearing_change_announced():
     thresholds = HazardThresholds()
     state = AlertState()
     spoken = []
-    for col in (1, 1, 3, 3):
-        alert = evaluate(corridor(1.5, col), thresholds)
+    for col in (5, 5, 9, 9):
+        alert = evaluate(corridor(1.8, col, cols=15), thresholds)
         state, speak = announce(state, alert, thresholds)
         spoken.append(speak)
     assert spoken == [False, True, False, True]
