@@ -6,6 +6,17 @@ local GPU measures how far away everything is, and a voice in the headphones
 says what to do: "Keep going straight", "Move a little left", "Stop. Turn
 right."
 
+![Sight dashboard on a live walk: camera, labelled depth map with the walking line, and top-down path, with the spoken instruction below](screenshots/indoor-chair.png)
+
+- **Hazard alerts in 16 ms (p50)**, computed on the laptop: "Caution", then
+  "Stop", then what is in the way.
+- **Directions, not just warnings**: it looks several metres ahead and steers
+  only through gaps wide enough for a person.
+- **Scene understanding** from Gemini when the scene changes: doorways,
+  stairs, road crossings.
+- **Keeps working offline**: hazards and local steering never wait on the
+  network.
+
 ## How it works
 
 ```
@@ -32,8 +43,29 @@ imminent obstacles are handled entirely on the laptop, and the cloud is used
 only for richer guidance. With the network down, hazard alerts and local
 directions keep working.
 
-A web UI shows the camera feed, the labelled depth map, the walking line,
-everything that was spoken or dropped, and per-stage latency percentiles.
+## The dashboard
+
+A web UI shows what the system sees and why it says what it says:
+
+- **Camera**: the live feed, with the current hazard tag such as
+  "Stop right · 1.17 m".
+- **Depth + SAM + Path**: metric depth from near (yellow) to far (blue), with
+  objects outlined and labelled by RT-DETRv2, SAM 2.1 and DINOv2, and the
+  walking line drawn up to the first thing that blocks it.
+- **Path**: a top-down view of the free floor in metres, the chosen heading,
+  and the nearest obstacle.
+- Below: the last instruction, whether it came from the local or hazard tier
+  and how long it took, then p50 / p95 / p99 latency for every stage against
+  its bound.
+
+| | |
+| --- | --- |
+| ![Bicycles parked on the left](screenshots/bicycles.png) | ![Stairs ahead on the left](screenshots/stairs.png) |
+| "A bicycle on your left." | "A stairs on your left." |
+| ![Caution tag for a truck 2.98 m ahead](screenshots/caution-truck.png) | ![Stop tag for a person 1.17 m to the right](screenshots/stop-person.png) |
+| "Caution left · 2.98 m", then "Turn left." | "Stop right · 1.17 m" as a person crosses. |
+| ![Pedestrian crossing with traffic lights](screenshots/crossing-hazard.png) | ![Car park with a car 6 m ahead](screenshots/car-ahead.png) |
+| Hazard tier: "Obstacle on your right." | "Continue for 8 metres." |
 
 ## Quick start
 
