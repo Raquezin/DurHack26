@@ -12,8 +12,8 @@ _RANK = {None: 0, HazardLevel.CAUTION: 1, HazardLevel.STOP: 2}
 
 @dataclass(frozen=True, slots=True)
 class HazardThresholds:
-    stop_m: float = 1.2
-    caution_m: float = 2.0
+    stop_m: float = 1.5
+    caution_m: float = 3.0
     half_width_m: float = 0.4
     confirm_frames: int = 2
     closer_m: float = 0.3

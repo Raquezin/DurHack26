@@ -26,6 +26,11 @@ _PHRASES = {
     Bearing.LEFT: PhraseId.STOP_GO_LEFT,
     Bearing.RIGHT: PhraseId.STOP_GO_RIGHT,
 }
+_CAUTION = {
+    Bearing.LEFT: PhraseId.CAUTION_LEFT,
+    Bearing.AHEAD: PhraseId.CAUTION_AHEAD,
+    Bearing.RIGHT: PhraseId.CAUTION_RIGHT,
+}
 
 TagsSource = Callable[[], tuple[int, tuple[SceneTag, ...]] | None]
 
@@ -66,9 +71,10 @@ class HazardMonitor:
                 frame_id=alert.frame_id,
             )
         )
-        if alert.level is not HazardLevel.STOP:
-            return
-        phrase = self._phrase(perception)
+        if alert.level is HazardLevel.STOP:
+            phrase = self._phrase(perception)
+        else:
+            phrase = _CAUTION[alert.bearing]
         self._arbiter.submit(
             Utterance(
                 priority=Priority.HAZARD,

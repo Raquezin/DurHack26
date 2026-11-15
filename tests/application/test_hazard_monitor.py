@@ -102,12 +102,30 @@ async def test_held_alert_is_spoken_once():
     assert len(sink.plays) == 1
 
 
-async def test_caution_is_shown_but_not_spoken():
+async def test_caution_speaks_once_per_approach():
     monitor, events, sink = await _rig()
-    monitor.observe(_perception(1.5))
-    monitor.observe(_perception(1.5, frame_id=2))
-    assert [type(e) for e in events.events] == [HazardEvent]
-    assert sink.plays == []
+    for frame_id in range(1, 5):
+        monitor.observe(_perception(1.8, frame_id=frame_id))
+    texts = [
+        e.text for e in events.events if isinstance(e, UtteranceEvent)
+    ]
+    assert texts == [PHRASE_TEXT[PhraseId.CAUTION_AHEAD]]
+
+
+async def test_caution_names_the_side():
+    monitor, events, sink = await _rig()
+    for frame_id in (1, 2):
+        perception = _perception(1.8, frame_id=frame_id)
+        distances = list(perception.geometry.distances_m)
+        for row in range(3):
+            distances[row * 5 + 1] = 1.8
+            distances[row * 5 + 2] = 5.0
+        geometry = replace(perception.geometry, distances_m=tuple(distances))
+        monitor.observe(replace(perception, geometry=geometry))
+    texts = [
+        e.text for e in events.events if isinstance(e, UtteranceEvent)
+    ]
+    assert texts == [PHRASE_TEXT[PhraseId.CAUTION_LEFT]]
 
 
 async def test_stop_names_the_open_side():
@@ -155,6 +173,25 @@ async def test_stale_tags_are_not_described():
         e.text for e in events.events if isinstance(e, UtteranceEvent)
     ]
     assert len(texts) == 1 and texts[0] in _TURNS
+
+
+async def test_caution_describes_then_stop_stays_clean():
+    monitor, events, sink = await _rig(tags_source=lambda: (0, (_CHAIR,)))
+    monitor.observe(_perception(1.8))
+    monitor.observe(_perception(1.8, frame_id=2))
+    await asyncio.sleep(0.05)
+    monitor.observe(_perception(1.0, frame_id=3))
+    monitor.observe(_perception(1.0, frame_id=4))
+    await asyncio.sleep(0.05)
+    spoken = [
+        e.text
+        for e in events.events
+        if isinstance(e, UtteranceEvent) and e.outcome is Outcome.SPOKEN
+    ]
+    assert spoken[0] == PHRASE_TEXT[PhraseId.CAUTION_AHEAD]
+    assert spoken[1] == "There is a chair in front of you."
+    assert spoken[2] in _TURNS
+    assert len(spoken) == 3
 
 
 async def test_stop_without_matching_tag_stays_plain():

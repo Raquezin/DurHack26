@@ -19,7 +19,7 @@ class SteeringSettings:
     half_width_m: float = 0.4
     confirm_frames: int = 8
     min_interval_s: float = 1.5
-    repeat_s: float = 12.0
+    repeat_s: float = 30.0
     max_m: float = 10.0
 
 

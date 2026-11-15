@@ -37,12 +37,12 @@ def test_clear_scene_no_alert():
 
 
 def test_wall_at_caution_distance():
-    g = geometry([2.5, 3.0, 1.5, 3.0, 2.5] * 3)
+    g = geometry([2.5, 3.0, 1.6, 3.0, 2.5] * 3)
     alert = evaluate(g, HazardThresholds())
     assert alert is not None
     assert alert.level is HazardLevel.CAUTION
     assert alert.bearing is Bearing.AHEAD
-    assert alert.distance_m == 1.5
+    assert alert.distance_m == 1.6
 
 
 def test_wall_below_stop_distance():
@@ -52,16 +52,16 @@ def test_wall_below_stop_distance():
 
 
 def test_stop_boundary_uses_strict_less_than():
-    alert = evaluate(corridor(1.2, 2), HazardThresholds())
+    alert = evaluate(corridor(1.5, 2), HazardThresholds())
     assert alert is not None
     assert alert.level is HazardLevel.CAUTION
-    alert = evaluate(corridor(1.19, 2), HazardThresholds())
+    alert = evaluate(corridor(1.49, 2), HazardThresholds())
     assert alert.level is HazardLevel.STOP
 
 
 def test_caution_boundary_uses_strict_less_than():
-    assert evaluate(corridor(2.0, 2), HazardThresholds()) is None
-    alert = evaluate(corridor(1.99, 2), HazardThresholds())
+    assert evaluate(corridor(3.0, 2), HazardThresholds()) is None
+    alert = evaluate(corridor(2.99, 2), HazardThresholds())
     assert alert is not None
     assert alert.level is HazardLevel.CAUTION
 

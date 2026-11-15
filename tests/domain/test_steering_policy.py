@@ -127,8 +127,8 @@ def test_direction_change_waits_for_min_interval():
 
 def test_held_phrase_is_repeated_after_the_repeat_interval():
     straight = PhraseId.GO_STRAIGHT
-    spoken = _run([straight] * 130)
-    assert [i for i, said in enumerate(spoken) if said] == [2, 122]
+    spoken = _run([straight] * 310)
+    assert [i for i, said in enumerate(spoken) if said] == [2, 302]
 
 
 def test_turns_toward_open_space_past_a_near_obstacle():

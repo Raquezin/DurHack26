@@ -157,8 +157,8 @@ d_alert = ( v · (t_system + t_reaction) + d_brake ) / (1 − e_depth)
 
 Starting thresholds, to be tuned in the room:
 
-- **STOP** when the nearest obstacle in the walking corridor is < 1.2 m.
-- **CAUTION** when it is < 2.0 m.
+- **STOP** when the nearest obstacle in the walking corridor is < 1.5 m.
+- **CAUTION** when it is < 3.0 m.
 - Demo walking speed ≤ 0.75 m/s.
 
 ## 6. Guidance look-ahead
@@ -172,7 +172,7 @@ v · (1.5 s + 1.5 s) = 3 m ahead at 1.0 m/s, 1.5 m at 0.5 m/s
 ```
 
 or further. This splits the scene between the tiers: the hazard tier owns
-everything nearer than 2 m; the guidance tier reasons about the 2–5 m range
+everything nearer than 3 m; the guidance tier reasons about the 3–5 m range
 and route choice. The VLM prompt states this explicitly.
 
 ## 7. Upper bounds per inference stage

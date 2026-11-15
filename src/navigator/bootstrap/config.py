@@ -40,8 +40,8 @@ class Settings:
     web_port: int = 8000
     phone_host: str = "127.0.0.1"
     phone_port: int = 8001
-    stop_m: float = 1.0
-    caution_m: float = 2.0
+    stop_m: float = 1.5
+    caution_m: float = 3.0
     path_half_width_m: float = 0.4
     hazard_confirm_frames: int = 2
     trigger_min_interval_s: float = 2.0
