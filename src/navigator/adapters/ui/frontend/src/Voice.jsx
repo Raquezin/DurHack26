@@ -6,7 +6,7 @@ export function Voice({ speaking, label, text }) {
       <ThinkingOrb state="composing" size={64} color="#ff3b30" />
       {label && (
         <p className="source" data-source={label.source}>
-          {label.source.toUpperCase()} · {label.ageMs} ms
+          {label.source.toUpperCase()} {label.ageMs} ms
         </p>
       )}
       <p className="text">{text}</p>
