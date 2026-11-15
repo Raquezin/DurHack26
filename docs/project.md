@@ -1,4 +1,4 @@
-# Project Overview — Real-Time Audio Navigation Assistant for the Visually Impaired
+# Sight — Real-Time Audio Navigation Assistant for the Visually Impaired
 
 ## Vision
 

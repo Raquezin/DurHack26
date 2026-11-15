@@ -1,4 +1,4 @@
-# Navigator
+# Sight
 
 Real-time audio navigation assistant for blind and visually impaired people,
 built at DurHack 2026. A camera films what is ahead, a depth model on the
