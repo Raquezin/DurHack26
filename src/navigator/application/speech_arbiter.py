@@ -12,6 +12,10 @@ from navigator.ports.event_publisher import EventPublisher
 from navigator.ports.speech_synthesizer import SpeechSynthesizer
 
 
+def _repeat_key(utterance: Utterance):
+    return utterance.phrase if utterance.phrase is not None else utterance.text
+
+
 class SpeechArbiter:
     def __init__(
         self,
@@ -45,13 +49,10 @@ class SpeechArbiter:
         if arbitration.is_stale(utterance, now):
             self._publish(utterance, Outcome.DROPPED_STALE)
             return
+        key = _repeat_key(utterance)
         with self._lock:
-            last = self._last_spoken.get(utterance.phrase)
-            if (
-                utterance.phrase is not None
-                and last is not None
-                and now - last < self._cooldown_ns(utterance)
-            ):
+            last = self._last_spoken.get(key)
+            if last is not None and now - last < self._cooldown_ns(utterance):
                 self._publish(utterance, Outcome.DROPPED_REPEAT)
                 return
             current = self._current
@@ -94,7 +95,7 @@ class SpeechArbiter:
             self._clock.now_ns() - utterance.t_capture_ns,
         )
         with self._lock:
-            self._last_spoken[utterance.phrase] = self._clock.now_ns()
+            self._last_spoken[_repeat_key(utterance)] = self._clock.now_ns()
             self._current_started = True
         self._publish(utterance, Outcome.SPOKEN)
 
@@ -119,8 +120,7 @@ class SpeechArbiter:
                     )
                     started = True
                     with self._lock:
-                        if utterance.phrase is not None:
-                            self._last_spoken[utterance.phrase] = now
+                        self._last_spoken[_repeat_key(utterance)] = now
                         self._current_started = True
                     self._sink.play(chunk)
                     self._publish(utterance, Outcome.SPOKEN)

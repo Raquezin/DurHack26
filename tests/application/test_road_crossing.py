@@ -56,12 +56,13 @@ async def test_road_crossing_is_announced_whatever_the_model_says():
 
 async def test_empty_depth_does_not_send_the_walker_into_the_road():
     arbiter, _ = await _run(TaggedReasoner(("road crossing",)), frames=30)
-    assert PhraseId.GO_STRAIGHT not in [u.phrase for u in arbiter.utterances]
+    assert all(u.phrase is PhraseId.ROAD_CROSSING for u in arbiter.utterances)
 
 
 async def test_open_path_is_spoken_when_no_road_is_seen():
     arbiter, events = await _run(TaggedReasoner(("pavement", "bench")))
-    assert [u.phrase for u in arbiter.utterances] == [PhraseId.GO_STRAIGHT]
+    assert arbiter.utterances
+    assert {u.text for u in arbiter.utterances} == {"Continue for 4 metres."}
     assert _tags(events) == [("pavement", "bench")]
 
 
@@ -104,4 +105,4 @@ async def test_a_later_frame_without_the_crossing_keeps_the_road_hold():
     guidance.stop()
     await asyncio.wait_for(task, 1.0)
     assert reasoner.calls > 1
-    assert PhraseId.GO_STRAIGHT not in [u.phrase for u in arbiter.utterances]
+    assert [u.phrase for u in arbiter.utterances] == [PhraseId.ROAD_CROSSING]

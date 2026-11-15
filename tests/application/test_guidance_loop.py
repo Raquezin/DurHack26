@@ -129,7 +129,7 @@ async def test_guidance_utterance_produced():
     assert texts and texts[0].final and texts[0].request_id == 1
     utterances = [e for e in events.events if isinstance(e, UtteranceEvent)]
     assert utterances[0].outcome is Outcome.SPOKEN
-    assert utterances[0].text == "Keep going straight."
+    assert utterances[0].text == "Continue for 4 metres."
 
 
 async def test_perception_without_jpeg_skipped():
@@ -160,8 +160,8 @@ async def test_utterance_deadline_from_capture_plus_max_age_minus_offset():
     assert utterance.deadline_ns == 4_900_000_000 + 5_000_000_000 - 100_000_000
 
 
-async def _feed(guidance, clock, scenes, step_ns=100_000_000):
-    for frame_id, distances in enumerate(scenes, start=1):
+async def _feed(guidance, clock, scenes, step_ns=100_000_000, start=0):
+    for frame_id, distances in enumerate(scenes, start=start + 1):
         guidance._board.put(_perception(frame_id, t_capture_ns=clock.now_ns(), distances=distances))
         await asyncio.sleep(0.005)
         clock.advance(step_ns)
@@ -272,9 +272,11 @@ async def test_local_steering_speaks_while_the_cloud_is_silent():
     )
     task = asyncio.create_task(guidance.run())
     await _feed(guidance, clock, [BLOCKED_RIGHT_OPEN] * 10)
+    await _feed(guidance, clock, [STILL] * 20, start=10)
     guidance.stop()
     await asyncio.wait_for(task, 1.0)
-    assert [u.phrase for u in arbiter.utterances] == [PhraseId.VEER_RIGHT]
+    assert [u.phrase for u in arbiter.utterances] == [PhraseId.VEER_RIGHT, None]
+    assert arbiter.utterances[1].text == "Continue for 4 metres."
 
 
 async def test_cloud_direction_into_a_wall_is_not_spoken():

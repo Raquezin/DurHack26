@@ -132,6 +132,18 @@ async def test_same_phrase_within_cooldown_dropped_repeat():
     assert len(sink.plays) == 2
 
 
+async def test_same_free_text_within_cooldown_dropped_repeat():
+    arbiter, _, events, _ = await _rig()
+    arbiter.submit(_utt("Continue for 4 metres.", Priority.GUIDANCE))
+    await _wait_outcomes(events, 1)
+    arbiter.submit(_utt("Continue for 4 metres.", Priority.GUIDANCE))
+    await _wait_outcomes(events, 2)
+    assert _outcomes(events) == [
+        (Outcome.SPOKEN, "Continue for 4 metres."),
+        (Outcome.DROPPED_REPEAT, "Continue for 4 metres."),
+    ]
+
+
 async def test_equal_priority_replaces_unstarted():
     arbiter, sink, events, clock = await _rig(synth_delay_s=0.3)
     arbiter.submit(_utt("first", Priority.GUIDANCE))

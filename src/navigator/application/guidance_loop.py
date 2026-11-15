@@ -12,6 +12,7 @@ from navigator.domain.policies.steering import (
     SteeringSettings,
     SteeringState,
     advise,
+    path_clearance,
     permits,
     steer,
 )
@@ -85,16 +86,20 @@ class GuidanceLoop:
         return self._clock.now_ns() < self._road_until_ns
 
     def _steer(self, geometry: SceneGeometry) -> None:
-        wanted = steer(geometry, self._steering)
+        wanted, committed = steer(
+            geometry, self._steering, self._steering_state.committed
+        )
         road_hides_open_path = wanted in _OPEN_PATH and self._road_ahead()
         if road_hides_open_path:
             wanted = None
+        self._steering_state = replace(self._steering_state, committed=committed)
         self._steering_state, phrase = advise(
             self._steering_state, wanted, self._clock.now_ns(), self._steering
         )
         if phrase is not None:
             deadline_ns = geometry.t_capture_ns + _LOCAL_DEADLINE_NS - self._offset_ns
-            self._speak(phrase, PHRASE_TEXT[phrase], geometry, deadline_ns)
+            phrase, text = self._render(phrase, geometry)
+            self._speak(phrase, text, geometry, deadline_ns)
 
     def _maybe_request(self, perception: Perception) -> None:
         if perception.camera_jpeg is None or (self._task and not self._task.done()):
@@ -148,7 +153,12 @@ class GuidanceLoop:
         latest = self._board.latest()
         if latest is not None and not (
             still_valid(asked, latest.geometry, self._settings)
-            and permits(latest.geometry, instruction.phrase, self._steering)
+            and permits(
+                latest.geometry,
+                instruction.phrase,
+                self._steering,
+                self._steering_state.committed,
+            )
         ):
             return
         self._announce(instruction.phrase, asked, deadline_ns, instruction.text)
@@ -160,6 +170,19 @@ class GuidanceLoop:
         if has_road_crossing(tags):
             self._road_until_ns = self._clock.now_ns() + _ROAD_HOLD_NS
 
+    def _render(
+        self, phrase: PhraseId | None, geometry: SceneGeometry
+    ) -> tuple[PhraseId | None, str]:
+        if phrase is not PhraseId.GO_STRAIGHT:
+            return phrase, PHRASE_TEXT[phrase]
+        latest = self._board.latest()
+        if latest is not None:
+            geometry = latest.geometry
+        metres = int(min(path_clearance(geometry, self._steering), self._steering.max_m))
+        if metres >= self._steering.max_m:
+            return PhraseId.PATH_CLEAR, PHRASE_TEXT[PhraseId.PATH_CLEAR]
+        return None, f"Continue for {metres} metres."
+
     def _announce(
         self,
         phrase: PhraseId | None,
@@ -167,12 +190,14 @@ class GuidanceLoop:
         deadline_ns: int,
         text: str | None = None,
     ) -> None:
-        text = text if text is not None else PHRASE_TEXT[phrase]
+        announced = phrase
+        if phrase is PhraseId.GO_STRAIGHT or text is None:
+            phrase, text = self._render(phrase, asked)
         self._events.publish(
             GuidanceTextEvent(request_id=asked.frame_id, delta=text, final=True)
         )
         self._steering_state = replace(
-            self._steering_state, spoken=phrase, spoken_ns=self._clock.now_ns()
+            self._steering_state, spoken=announced, spoken_ns=self._clock.now_ns()
         )
         self._speak(phrase, text, asked, deadline_ns)
 

@@ -23,11 +23,15 @@ SYSTEM_PROMPT = "\n".join(
         "and hears your words through headphones.",
         "A local system already warns about every obstacle nearer than 2 m. "
         "Do not talk about those.",
-        "Your job is the route: look 2 to 5 m ahead and say which way to go "
-        "next.",
+        "Your job is the route 2 to 5 m ahead: say how far the walker can "
+        "keep going, and name a direction only when the way ahead is closing "
+        "or something new blocks it — never while the current direction "
+        "still works.",
         "Answer with one short imperative of at most eight words. No "
-        "preamble, no explanation, no distances unless they matter.",
-        "When one of these phrase names fits, answer with the name alone:",
+        "preamble, no explanation.",
+        "On an open path say \"Continue for N metres\" with N the metres "
+        "ahead. When one of these phrase names fits, answer with the name "
+        "alone:",
         *(f"{p.name} = {PHRASE_TEXT[p]}" for p in GUIDANCE_PHRASES),
         "Do not repeat a recent instruction unless the scene has changed.",
         "Your answer has two lines. The first is TAGS: then two to six short "

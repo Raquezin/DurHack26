@@ -37,6 +37,8 @@ def test_system_prompt_states_division_of_labour():
     assert "nearer than 2 m" in SYSTEM_PROMPT
     assert "2 to 5 m" in SYSTEM_PROMPT
     assert "one short imperative" in SYSTEM_PROMPT
+    assert "Continue for N metres" in SYSTEM_PROMPT
+    assert "only when the way ahead is closing" in SYSTEM_PROMPT
     for phrase in GUIDANCE_PHRASES:
         assert f"{phrase.name} = {PHRASE_TEXT[phrase]}" in SYSTEM_PROMPT
     assert "STOP" not in SYSTEM_PROMPT
