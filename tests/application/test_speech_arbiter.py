@@ -90,12 +90,27 @@ async def test_hazard_interrupts_playing_guidance():
         _utt("Keep going straight.", Priority.GUIDANCE,
              phrase=PhraseId.GO_STRAIGHT)
     )
-    clock.advance(3_000_000_000)
+    clock.advance(50_000_000)
     arbiter.submit(_utt("Stop.", Priority.HAZARD, phrase=PhraseId.STOP))
     assert len(sink.interrupts) == 1
     assert _outcomes(events) == [
         (Outcome.SPOKEN, "Keep going straight."),
         (Outcome.INTERRUPTED, "Keep going straight."),
+        (Outcome.SPOKEN, "Stop."),
+    ]
+
+
+async def test_finished_guidance_is_not_interrupted():
+    arbiter, sink, events, clock = await _rig()
+    arbiter.submit(
+        _utt("Keep going straight.", Priority.GUIDANCE,
+             phrase=PhraseId.GO_STRAIGHT)
+    )
+    clock.advance(3_000_000_000)
+    arbiter.submit(_utt("Stop.", Priority.HAZARD, phrase=PhraseId.STOP))
+    assert sink.interrupts == []
+    assert _outcomes(events) == [
+        (Outcome.SPOKEN, "Keep going straight."),
         (Outcome.SPOKEN, "Stop."),
     ]
 

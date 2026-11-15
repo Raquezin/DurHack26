@@ -15,6 +15,12 @@ def inner_tangent(col: int, cols: int, horizontal_fov_deg: float) -> float:
     return min(abs(left), abs(right))
 
 
+def gap_width_m(geometry: SceneGeometry, first: int, last: int, distance_m: float) -> float:
+    left = _edge_tangent(first, geometry.cols, geometry.horizontal_fov_deg)
+    right = _edge_tangent(last + 1, geometry.cols, geometry.horizontal_fov_deg)
+    return distance_m * (right - left)
+
+
 def side(col: int, cols: int) -> int:
     centre = (cols - 1) / 2
     return (col > centre) - (col < centre)

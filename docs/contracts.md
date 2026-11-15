@@ -100,7 +100,7 @@ class PcmChunk:
 | `Frame` | `frame_id` | Strictly increasing per session |
 | | `t_capture_ns` | Stamped when the frame reaches the process |
 | | `pixels` | BGR, 8 bits per channel, row-major, `width × height × 3` bytes |
-| `SceneGeometry` | `rows`, `cols` | Zone grid; 3 × 5 by default |
+| `SceneGeometry` | `rows`, `cols` | Zone grid; 3 × 15 by default |
 | | `distances_m` | Row-major, length `rows × cols`. Robust nearest non-floor surface in the zone. `inf` when nothing is within 10 m |
 | | `valid` | False when the zone had too few usable pixels; its distance must then be ignored |
 | | `horizontal_fov_deg` | Lets consumers turn a column into a bearing |
@@ -135,7 +135,7 @@ is pre-rendered into the phrase cache at startup.
 
 | `PhraseId` | Text | Used by |
 | --- | --- | --- |
-| `STOP` | "Stop." | hazard |
+| `STOP`, `STOP_GO_LEFT`, `STOP_GO_RIGHT` | "Stop.", "Stop. Turn left.", "Stop. Turn right." | hazard; always names the side with the most room |
 | `CAUTION_AHEAD` | "Careful, obstacle ahead." | hazard |
 | `CAUTION_LEFT` | "Obstacle on your left." | hazard |
 | `CAUTION_RIGHT` | "Obstacle on your right." | hazard |

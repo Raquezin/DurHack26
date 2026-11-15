@@ -47,7 +47,6 @@ SYSTEM_PROMPT = "\n".join(
 
 _ROWS = ("head", "torso", "legs")
 _COL_NAMES = ("far left", "left", "ahead", "right", "far right")
-_COLS = ", ".join(_COL_NAMES)
 _TERMINATOR = re.compile(r"[.!?](?=\s)|(?<!\d)[.!?]$")
 _IDENTIFIER = re.compile(r"[A-Z]+(?:_[A-Z]+)+")
 _BY_TEXT = {text.casefold(): p for p, text in PHRASE_TEXT.items()}
@@ -79,7 +78,8 @@ def user_text(request: GuidanceRequest) -> str:
     recent = " | ".join(request.recently_spoken) or "nothing"
     return "\n".join(
         [
-            f"Nearest surface per zone in metres. Columns: {_COLS}. "
+            "Nearest surface per zone in metres. Columns run from far left "
+            "to far right. "
             "Rows top to bottom. - means nothing within 10 m, ? means "
             "unreliable.",
             distance_grid(request.geometry),

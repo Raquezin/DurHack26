@@ -6,6 +6,7 @@ from navigator.domain.policies.hazard import (
     AlertState,
     HazardThresholds,
     announce,
+    escape,
     evaluate,
 )
 
@@ -86,13 +87,19 @@ def test_bearing_per_column():
     assert evaluate(corridor(1.0, 3), HazardThresholds()).bearing is Bearing.RIGHT
 
 
-def test_all_rows_count():
-    for row in range(3):
+def test_rows_below_the_head_count():
+    for row in (1, 2):
         distances = [5.0] * 15
         distances[row * 5 + 2] = 1.0
         alert = evaluate(geometry(distances), HazardThresholds())
         assert alert is not None
         assert alert.level is HazardLevel.STOP
+
+
+def test_head_row_is_ignored():
+    distances = [5.0] * 15
+    distances[2] = 1.0
+    assert evaluate(geometry(distances), HazardThresholds()) is None
 
 
 def test_inf_distances_no_alert():
@@ -200,3 +207,30 @@ def test_swaying_at_a_wall_after_stop_stays_quiet():
         state, speak = announce(state, evaluate(corridor(distance, col), thresholds), thresholds)
         spoken.append(speak)
     assert spoken == [False, True] + [False] * 6
+
+
+def test_escape_picks_the_more_open_side():
+    g = geometry([5.0, 2.5, 1.0, 2.5, 8.0] * 3)
+    assert escape(g) is Bearing.RIGHT
+
+
+def test_escape_turns_toward_open_space_past_a_near_obstacle():
+    g = geometry([1.5, 1.7, 1.6, 1.0, 3.8] * 3)
+    assert escape(g) is Bearing.RIGHT
+
+
+def test_escape_ignores_the_head_row():
+    g = geometry([1.0] * 5 + [1.0, 1.0, 1.0, 1.0, 5.0] * 2)
+    assert escape(g) is Bearing.RIGHT
+
+
+def test_escape_keeps_its_side_unless_the_other_is_clearly_roomier():
+    g = geometry([3.0, 3.0, 1.0, 4.0, 4.0] * 3)
+    assert escape(g) is Bearing.RIGHT
+    assert escape(g, kept=Bearing.LEFT) is Bearing.LEFT
+    roomier = geometry([3.0, 3.0, 1.0, 5.0, 5.0] * 3)
+    assert escape(roomier, kept=Bearing.LEFT) is Bearing.RIGHT
+
+
+def test_escape_tie_at_the_edges_goes_to_the_roomier_side():
+    assert escape(geometry([9.0, 5.0, 1.0, 2.0, 9.0] * 3)) is Bearing.LEFT

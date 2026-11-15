@@ -57,7 +57,7 @@ def test_user_text_has_legend_grid_and_recent():
         recently_spoken=("Door ahead.", "Keep going straight."),
     )
     text = user_text(request)
-    assert "far left, left, ahead, right, far right" in text
+    assert "Columns run from far left to far right" in text
     assert "- means nothing within 10 m" in text
     assert "? means unreliable" in text
     assert "head: 2.8 4.1 4.1 4.1 2.8" in text

@@ -2,9 +2,11 @@ from dataclasses import dataclass, replace
 
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.hazard import Bearing, HazardAlert, HazardLevel
-from navigator.domain.path import in_path, side
+from navigator.domain.path import column_clearance, in_path, side
 
 _BEARINGS = {-1: Bearing.LEFT, 0: Bearing.AHEAD, 1: Bearing.RIGHT}
+_SWITCH_RATIO = 1.5
+_ROOM_CAP_M = 10.0
 _RANK = {None: 0, HazardLevel.CAUTION: 1, HazardLevel.STOP: 2}
 
 
@@ -26,11 +28,15 @@ class AlertState:
     distance_m: float = float("inf")
 
 
+def _below_head(geometry: SceneGeometry) -> range:
+    return range(1, geometry.rows) if geometry.rows > 1 else range(geometry.rows)
+
+
 def evaluate(
     geometry: SceneGeometry, thresholds: HazardThresholds
 ) -> HazardAlert | None:
     best = None
-    for row in range(geometry.rows):
+    for row in _below_head(geometry):
         for col in range(geometry.cols):
             i = row * geometry.cols + col
             distance = geometry.distances_m[i]
@@ -51,6 +57,22 @@ def evaluate(
         frame_id=geometry.frame_id,
         t_capture_ns=geometry.t_capture_ns,
     )
+
+
+def escape(geometry: SceneGeometry, kept: Bearing | None = None) -> Bearing | None:
+    clearance = column_clearance(geometry, _below_head(geometry), float("inf"))
+    room: dict[Bearing, tuple[float, float]] = {}
+    for col, d in enumerate(clearance):
+        bearing = _BEARINGS[side(col, geometry.cols)]
+        if bearing is not Bearing.AHEAD:
+            deepest, total = room.get(bearing, (0.0, 0.0))
+            room[bearing] = (max(deepest, d), total + min(d, _ROOM_CAP_M))
+    if not room:
+        return None
+    best = max(room, key=room.get)
+    if kept in room and room[kept][0] * _SWITCH_RATIO >= room[best][0]:
+        return kept
+    return best
 
 
 def announce(

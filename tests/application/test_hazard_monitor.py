@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 
 from navigator.adapters.audio.recording import RecordingAudioSink
 from navigator.adapters.clock.manual import ManualClock
@@ -13,6 +14,8 @@ from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.hazard import HazardLevel
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
 from navigator.domain.policies.hazard import HazardThresholds
+
+_TURNS = {PHRASE_TEXT[PhraseId.STOP_GO_LEFT], PHRASE_TEXT[PhraseId.STOP_GO_RIGHT]}
 
 
 def _perception(distance_m, frame_id=1, t_capture_ns=1_000):
@@ -85,7 +88,7 @@ async def test_stop_alert_submits_stop_utterance():
     utterance = events.events[1]
     assert isinstance(utterance, UtteranceEvent)
     assert utterance.outcome is Outcome.SPOKEN
-    assert utterance.text == PHRASE_TEXT[PhraseId.STOP]
+    assert utterance.text in _TURNS
     assert len(sink.plays) == 1
 
 
@@ -96,12 +99,33 @@ async def test_held_alert_is_spoken_once():
     assert len(sink.plays) == 1
 
 
-async def test_caution_phrase_follows_bearing():
+async def test_caution_is_shown_but_not_spoken():
     monitor, events, sink = await _rig()
     monitor.observe(_perception(1.5))
     monitor.observe(_perception(1.5, frame_id=2))
-    utterance = events.events[1]
-    assert utterance.text == PHRASE_TEXT[PhraseId.CAUTION_AHEAD]
+    assert [type(e) for e in events.events] == [HazardEvent]
+    assert sink.plays == []
+
+
+async def test_stop_names_the_open_side():
+    monitor, events, sink = await _rig()
+    for frame_id in (1, 2):
+        perception = _perception(1.0, frame_id=frame_id)
+        distances = list(perception.geometry.distances_m)
+        for row in range(3):
+            distances[row * 5 + 3] = distances[row * 5 + 4] = 1.0
+        geometry = replace(perception.geometry, distances_m=tuple(distances))
+        monitor.observe(replace(perception, geometry=geometry))
+    assert events.events[1].text == PHRASE_TEXT[PhraseId.STOP_GO_LEFT]
+
+
+async def test_boxed_in_still_names_a_side_to_turn():
+    monitor, events, sink = await _rig()
+    for frame_id in (1, 2):
+        perception = _perception(1.0, frame_id=frame_id)
+        geometry = replace(perception.geometry, distances_m=(1.0,) * 15)
+        monitor.observe(replace(perception, geometry=geometry))
+    assert events.events[1].text in _TURNS
 
 
 async def test_stale_utterance_dropped():

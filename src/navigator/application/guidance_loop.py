@@ -157,8 +157,8 @@ class GuidanceLoop:
         if not tags:
             return
         self._events.publish(TagsEvent(frame_id=asked.frame_id, tags=tags))
-        crossing = has_road_crossing(tags)
-        self._road_until_ns = self._clock.now_ns() + _ROAD_HOLD_NS if crossing else 0
+        if has_road_crossing(tags):
+            self._road_until_ns = self._clock.now_ns() + _ROAD_HOLD_NS
 
     def _announce(
         self,

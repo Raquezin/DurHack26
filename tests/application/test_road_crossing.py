@@ -74,3 +74,34 @@ async def test_tags_without_an_instruction_are_shown_but_not_spoken():
 async def test_answers_without_tags_publish_no_tags():
     _, events = await _run(TaggedReasoner(()), frames=3)
     assert _tags(events) == []
+
+
+class FlickeringLabeller:
+    def __init__(self):
+        self.calls = 0
+
+    async def advise(self, request):
+        self.calls += 1
+        labels = ("road crossing",) if self.calls == 1 else ("pavement",)
+        yield GuidanceInstruction(
+            phrase=None,
+            text="",
+            frame_id=request.geometry.frame_id,
+            t_capture_ns=request.geometry.t_capture_ns,
+            tags=tuple(SceneTag(label) for label in labels),
+        )
+
+
+async def test_a_later_frame_without_the_crossing_keeps_the_road_hold():
+    clock = ManualClock()
+    arbiter = CollectingArbiter()
+    events = CollectingEventPublisher()
+    settings = TriggerSettings(min_interval_s=0.0, keepalive_s=0.0)
+    reasoner = FlickeringLabeller()
+    guidance = _loop(reasoner, clock, arbiter, events, settings)
+    task = asyncio.create_task(guidance.run())
+    await _feed(guidance, clock, [STILL] * 80)
+    guidance.stop()
+    await asyncio.wait_for(task, 1.0)
+    assert reasoner.calls > 1
+    assert PhraseId.GO_STRAIGHT not in [u.phrase for u in arbiter.utterances]

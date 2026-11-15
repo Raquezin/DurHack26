@@ -51,8 +51,9 @@ def test_nothing_open_says_nothing():
     assert steer(scene([2.5] * 5), S) is None
 
 
-def test_both_sides_open_leaves_the_choice_to_the_cloud():
-    assert steer(scene([6.0, 2.5, 2.5, 2.5, 6.0]), S) is None
+def test_both_sides_open_turns_to_the_roomier_one():
+    assert steer(scene([6.0, 2.5, 2.5, 2.5, 9.0]), S) is PhraseId.TURN_RIGHT
+    assert steer(scene([9.0, 2.5, 2.5, 2.5, 6.0]), S) is PhraseId.TURN_LEFT
 
 
 def test_cloud_direction_into_open_space_is_permitted():
@@ -117,8 +118,57 @@ def test_flicker_is_never_spoken():
     assert _run([left, right] * 5) == [None] * 10
 
 
-def test_change_waits_for_min_interval():
+def test_leaving_the_open_path_is_said_at_once():
     straight, left = PhraseId.GO_STRAIGHT, PhraseId.VEER_LEFT
     spoken = _run([straight] * 3 + [left] * 40)
     assert spoken[2] is straight
-    assert spoken.index(left) == 32
+    assert spoken.index(left) == 5
+
+
+def test_direction_change_waits_for_min_interval():
+    left, right = PhraseId.VEER_LEFT, PhraseId.VEER_RIGHT
+    spoken = _run([left] * 3 + [right] * 40)
+    assert spoken[2] is left
+    assert spoken.index(right) == 32
+
+
+def test_held_phrase_is_repeated_after_the_repeat_interval():
+    straight = PhraseId.GO_STRAIGHT
+    spoken = _run([straight] * 130)
+    assert [i for i, said in enumerate(spoken) if said] == [2, 122]
+
+
+def test_turns_toward_open_space_past_a_near_obstacle():
+    assert steer(scene([2.5, 2.5, 8.0, 1.0, 9.0]), S) is PhraseId.TURN_RIGHT
+
+
+def test_tie_at_the_far_edges_goes_to_the_roomier_side():
+    assert steer(scene([10.0, 5.0, 1.0, 2.0, 10.0]), S) is PhraseId.TURN_LEFT
+    assert steer(scene([10.0, 2.0, 1.0, 5.0, 10.0]), S) is PhraseId.TURN_RIGHT
+
+
+def test_back_to_straight_is_said_at_once():
+    straight, left = PhraseId.GO_STRAIGHT, PhraseId.VEER_LEFT
+    spoken = _run([left] * 3 + [straight] * 5)
+    assert spoken[2] is left
+    assert spoken[5] is straight
+
+
+def fine(columns):
+    return SceneGeometry(
+        frame_id=1, t_capture_ns=0, rows=3, cols=15,
+        distances_m=tuple([8.0] * 15 + list(columns) * 2),
+        valid=(True,) * 45, horizontal_fov_deg=58.0,
+    )
+
+
+def test_a_gap_too_narrow_to_walk_through_is_not_a_way():
+    narrow = [1.5] * 15
+    narrow[11] = 6.0
+    assert steer(fine(narrow), S) is None
+
+
+def test_a_gap_as_wide_as_the_walker_is_a_way():
+    wide = [1.5] * 15
+    wide[10:14] = [6.0] * 4
+    assert steer(fine(wide), S) is PhraseId.VEER_RIGHT

@@ -3,6 +3,8 @@ from enum import Enum
 
 class PhraseId(Enum):
     STOP = "stop"
+    STOP_GO_LEFT = "stop_go_left"
+    STOP_GO_RIGHT = "stop_go_right"
     CAUTION_AHEAD = "caution_ahead"
     CAUTION_LEFT = "caution_left"
     CAUTION_RIGHT = "caution_right"
@@ -19,6 +21,8 @@ class PhraseId(Enum):
 
 PHRASE_TEXT = {
     PhraseId.STOP: "Stop.",
+    PhraseId.STOP_GO_LEFT: "Stop. Turn left.",
+    PhraseId.STOP_GO_RIGHT: "Stop. Turn right.",
     PhraseId.CAUTION_AHEAD: "Careful, obstacle ahead.",
     PhraseId.CAUTION_LEFT: "Obstacle on your left.",
     PhraseId.CAUTION_RIGHT: "Obstacle on your right.",

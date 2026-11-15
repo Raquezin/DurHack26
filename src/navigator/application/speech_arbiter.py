@@ -55,6 +55,8 @@ class SpeechArbiter:
                 self._publish(utterance, Outcome.DROPPED_REPEAT)
                 return
             current = self._current
+            if self._current_started and not self._sink.is_playing():
+                current = None
             if current is not None:
                 if (
                     not self._current_started

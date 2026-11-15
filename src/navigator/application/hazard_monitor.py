@@ -7,6 +7,7 @@ from navigator.domain.policies.hazard import (
     AlertState,
     HazardThresholds,
     announce,
+    escape,
     evaluate,
 )
 from navigator.domain.speech import Priority, Utterance
@@ -15,9 +16,9 @@ from navigator.ports.event_publisher import EventPublisher
 
 _HAZARD_DEADLINE_NS = 300_000_000
 _PHRASES = {
-    Bearing.AHEAD: PhraseId.CAUTION_AHEAD,
-    Bearing.LEFT: PhraseId.CAUTION_LEFT,
-    Bearing.RIGHT: PhraseId.CAUTION_RIGHT,
+    None: PhraseId.STOP,
+    Bearing.LEFT: PhraseId.STOP_GO_LEFT,
+    Bearing.RIGHT: PhraseId.STOP_GO_RIGHT,
 }
 
 
@@ -38,9 +39,12 @@ class HazardMonitor:
         self._thresholds = thresholds
         self._offset_ns = deadline_offset_ns
         self._state = AlertState()
+        self._way = None
 
     def observe(self, perception: Perception) -> None:
         alert = evaluate(perception.geometry, self._thresholds)
+        if alert is None:
+            self._way = None
         self._state, speak = announce(self._state, alert, self._thresholds)
         if not speak:
             return
@@ -52,11 +56,9 @@ class HazardMonitor:
                 frame_id=alert.frame_id,
             )
         )
-        phrase = (
-            PhraseId.STOP
-            if alert.level is HazardLevel.STOP
-            else _PHRASES[alert.bearing]
-        )
+        if alert.level is not HazardLevel.STOP:
+            return
+        phrase = self._phrase(perception)
         self._arbiter.submit(
             Utterance(
                 priority=Priority.HAZARD,
@@ -73,3 +75,7 @@ class HazardMonitor:
             Stage.HAZARD_DECISION,
             self._clock.now_ns() - perception.t_ready_ns,
         )
+
+    def _phrase(self, perception: Perception) -> PhraseId:
+        self._way = escape(perception.geometry, self._way)
+        return _PHRASES[self._way]

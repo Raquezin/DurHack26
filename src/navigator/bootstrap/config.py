@@ -12,7 +12,7 @@ class Settings:
     camera_fourcc: str = "MJPG"
     hfov_deg: float = 58.0
     grid_rows: int = 3
-    grid_cols: int = 5
+    grid_cols: int = 15
     perception_model: str = "da3metric-large"
     input_long_side: int = 504
     scale: float = 1.0
@@ -40,7 +40,7 @@ class Settings:
     web_port: int = 8000
     phone_host: str = "127.0.0.1"
     phone_port: int = 8001
-    stop_m: float = 1.2
+    stop_m: float = 1.0
     caution_m: float = 2.0
     path_half_width_m: float = 0.4
     hazard_confirm_frames: int = 2
