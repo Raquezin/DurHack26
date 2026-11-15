@@ -1,11 +1,13 @@
 from collections.abc import Callable
 
+from navigator.application.describing import description
 from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.domain.events import HazardEvent
-from navigator.domain.geometry import Perception
+from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.hazard import Bearing, HazardLevel
+from navigator.domain.path import blocking_zone
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
-from navigator.domain.policies.describe import describe
+from navigator.domain.policies.describe import TagMap, blocker_tag
 from navigator.domain.policies.hazard import (
     AlertState,
     HazardThresholds,
@@ -13,14 +15,12 @@ from navigator.domain.policies.hazard import (
     escape,
     evaluate,
 )
+from navigator.domain.policies.trigger import TriggerSettings
 from navigator.domain.speech import Priority, Utterance
-from navigator.domain.tags import SceneTag
 from navigator.ports.clock import Clock
 from navigator.ports.event_publisher import EventPublisher
 
 _HAZARD_DEADLINE_NS = 300_000_000
-_DESCRIBE_DEADLINE_NS = 4_000_000_000
-_TAG_MAX_AGE_NS = 2_500_000_000
 _PHRASES = {
     None: PhraseId.STOP,
     Bearing.LEFT: PhraseId.STOP_GO_LEFT,
@@ -32,7 +32,7 @@ _CAUTION = {
     Bearing.RIGHT: PhraseId.CAUTION_RIGHT,
 }
 
-TagsSource = Callable[[], tuple[int, tuple[SceneTag, ...]] | None]
+TagsSource = Callable[[], TagMap | None]
 
 
 class HazardMonitor:
@@ -45,6 +45,7 @@ class HazardMonitor:
         thresholds: HazardThresholds,
         deadline_offset_ns: int = 0,
         tags_source: TagsSource | None = None,
+        trigger_settings: TriggerSettings | None = None,
     ) -> None:
         self._arbiter = arbiter
         self._events = events
@@ -53,6 +54,7 @@ class HazardMonitor:
         self._thresholds = thresholds
         self._offset_ns = deadline_offset_ns
         self._tags = tags_source
+        self._trigger = trigger_settings or TriggerSettings()
         self._state = AlertState()
         self._way = None
 
@@ -91,32 +93,19 @@ class HazardMonitor:
             Stage.HAZARD_DECISION,
             self._clock.now_ns() - perception.t_ready_ns,
         )
-        self._describe(alert)
+        self._describe(perception.geometry)
 
-    def _describe(self, alert) -> None:
-        if self._tags is None:
+    def _describe(self, geometry: SceneGeometry) -> None:
+        zone = blocking_zone(geometry, self._thresholds.half_width_m)
+        if self._tags is None or zone is None:
             return
-        marked = self._tags()
-        if marked is None:
-            return
-        t_tags, tags = marked
-        if self._clock.now_ns() - t_tags > _TAG_MAX_AGE_NS:
-            return
-        text = describe(tags, alert.bearing)
-        if text is None:
-            return
-        self._arbiter.submit(
-            Utterance(
-                priority=Priority.DESCRIPTION,
-                phrase=None,
-                text=text,
-                frame_id=alert.frame_id,
-                t_capture_ns=alert.t_capture_ns,
-                deadline_ns=alert.t_capture_ns
-                + _DESCRIBE_DEADLINE_NS
-                - self._offset_ns,
-            )
+        tag = blocker_tag(
+            self._tags(), geometry, zone, self._thresholds.half_width_m, self._trigger
         )
+        if tag is not None:
+            self._arbiter.submit(
+                description(tag, zone[2], geometry, self._offset_ns)
+            )
 
     def _phrase(self, perception: Perception) -> PhraseId:
         self._way = escape(perception.geometry, self._way)

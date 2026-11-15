@@ -3,6 +3,7 @@ import threading
 
 from navigator.application.scene_board import SceneBoard
 from navigator.domain.geometry import Perception, SceneGeometry
+from navigator.domain.policies.describe import tag_map
 from navigator.domain.tags import SceneTag
 
 
@@ -49,8 +50,9 @@ def test_tags_round_trip():
     board = SceneBoard()
     assert board.latest_tags() is None
     tags = (SceneTag("chair", ((0.5, 0.5),)),)
-    board.set_tags(123, tags)
-    assert board.latest_tags() == (123, tags)
+    marked = tag_map(perception(1).geometry, tags)
+    board.set_tags(marked)
+    assert board.latest_tags() is marked
 
 
 async def test_wait_newer_wakes_from_other_thread():

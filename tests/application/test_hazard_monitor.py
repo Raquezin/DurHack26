@@ -13,6 +13,7 @@ from navigator.domain.events import HazardEvent, Outcome, UtteranceEvent
 from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.hazard import HazardLevel
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
+from navigator.domain.policies.describe import tag_map
 from navigator.domain.policies.hazard import HazardThresholds
 from navigator.domain.speech import Priority
 from navigator.domain.tags import SceneTag
@@ -40,6 +41,11 @@ def _perception(distance_m, frame_id=1, t_capture_ns=1_000):
         camera_jpeg=None,
         depth_jpeg=None,
     )
+
+
+def _tagged(tag=_CHAIR, distance_m=1.0, t_capture_ns=1_000):
+    geometry = _perception(distance_m, t_capture_ns=t_capture_ns).geometry
+    return lambda: tag_map(geometry, (tag,))
 
 
 async def _rig(tags_source=None):
@@ -156,7 +162,7 @@ async def test_boxed_in_still_names_a_side_to_turn():
 
 
 async def test_stop_describes_the_thing_ahead():
-    monitor, events, sink = await _rig(tags_source=lambda: (0, (_CHAIR,)))
+    monitor, events, sink = await _rig(tags_source=_tagged())
     monitor.observe(_perception(1.0))
     monitor.observe(_perception(1.0, frame_id=2))
     await asyncio.sleep(0.05)
@@ -174,7 +180,7 @@ async def test_stop_describes_the_thing_ahead():
 
 async def test_stale_tags_are_not_described():
     monitor, events, sink = await _rig(
-        tags_source=lambda: (-3_000_000_000, (_CHAIR,))
+        tags_source=_tagged(t_capture_ns=-3_000_000_000)
     )
     monitor.observe(_perception(1.0))
     monitor.observe(_perception(1.0, frame_id=2))
@@ -186,7 +192,7 @@ async def test_stale_tags_are_not_described():
 
 
 async def test_caution_describes_then_stop_stays_clean():
-    monitor, events, sink = await _rig(tags_source=lambda: (0, (_CHAIR,)))
+    monitor, events, sink = await _rig(tags_source=_tagged(distance_m=1.8))
     monitor.observe(_perception(1.8))
     monitor.observe(_perception(1.8, frame_id=2))
     await asyncio.sleep(0.05)
@@ -206,11 +212,37 @@ async def test_caution_describes_then_stop_stays_clean():
 
 async def test_stop_without_matching_tag_stays_plain():
     far = SceneTag("chair", ((0.75, 0.4), (0.95, 0.4), (0.95, 0.9), (0.75, 0.9)))
-    monitor, events, sink = await _rig(tags_source=lambda: (0, (far,)))
+    monitor, events, sink = await _rig(tags_source=_tagged(far))
     monitor.observe(_perception(1.0))
     monitor.observe(_perception(1.0, frame_id=2))
     await asyncio.sleep(0.05)
     assert len(sink.plays) == 1
+
+
+async def test_tags_from_a_scene_that_changed_are_not_described():
+    turned = replace(
+        _perception(1.0).geometry, distances_m=(5.0,) * 5 + (1.0,) * 10
+    )
+    monitor, events, sink = await _rig(
+        tags_source=lambda: tag_map(turned, (_CHAIR,))
+    )
+    monitor.observe(_perception(1.0))
+    monitor.observe(_perception(1.0, frame_id=2))
+    await asyncio.sleep(0.05)
+    assert len(sink.plays) == 1
+
+
+async def test_description_names_the_tag_on_the_blocking_zone_not_the_lowest_one():
+    floor_mat = SceneTag("bench", ((0.0, 0.92), (1.0, 0.92), (1.0, 1.0), (0.0, 1.0)))
+    geometry = _perception(1.0).geometry
+    monitor, events, sink = await _rig(
+        tags_source=lambda: tag_map(geometry, (floor_mat, _CHAIR))
+    )
+    monitor.observe(_perception(1.0))
+    monitor.observe(_perception(1.0, frame_id=2))
+    await asyncio.sleep(0.05)
+    texts = [e.text for e in events.events if isinstance(e, UtteranceEvent)]
+    assert texts[1] == "A chair ahead."
 
 
 async def test_stale_utterance_dropped():

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Feeds, useFeeds } from "./Feeds.jsx";
 import { Latency } from "./Latency.jsx";
+import { useRoute } from "./Route.jsx";
 import { Voice } from "./Voice.jsx";
 import { connect } from "./socket.js";
 import { speechDurationMs } from "./speech.js";
@@ -13,6 +14,7 @@ const WAITING_TEXT = "Waiting for guidance";
 
 export function App() {
   const feeds = useFeeds();
+  const route = useRoute();
   const [text, setText] = useState(WAITING_TEXT);
   const [speaking, setSpeaking] = useState(false);
   const [label, setLabel] = useState(null);
@@ -70,6 +72,7 @@ export function App() {
   }, []);
 
   const onFeedsPreview = feeds.onPreview;
+  const onRoute = route.onRoute;
   useEffect(() => {
     return connect({
       onLink: setLink,
@@ -82,11 +85,19 @@ export function App() {
         else if (event.type === "timing") setStages(event.stages);
         else if (event.type === "hazard") showHazard(event);
         else if (event.type === "tags") showTags(event);
+        else if (event.type === "route") onRoute(event);
         else if (event.type === "guidance_text")
           guidanceTexts.current.push({ text: event.delta, at: Date.now() });
       },
     });
-  }, [onFeedsPreview, startSpeaking, stopSpeaking, showHazard, showTags]);
+  }, [
+    onFeedsPreview,
+    onRoute,
+    startSpeaking,
+    stopSpeaking,
+    showHazard,
+    showTags,
+  ]);
 
   useEffect(() => {
     document.body.dataset.link = link;
@@ -94,7 +105,13 @@ export function App() {
 
   return (
     <main>
-      <Feeds feeds={feeds} hazard={hazard} tags={tags} link={link} />
+      <Feeds
+        feeds={feeds}
+        route={route}
+        hazard={hazard}
+        tags={tags}
+        link={link}
+      />
       <Voice speaking={speaking} label={label} text={text} />
       <Latency stages={stages} />
     </main>

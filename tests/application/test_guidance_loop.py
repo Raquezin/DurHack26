@@ -229,7 +229,7 @@ async def test_request_abandoned_at_max_age():
     guidance.stop()
     await asyncio.wait_for(task, 1.0)
     assert not arbiter.utterances
-    assert not events.events
+    assert not [e for e in events.events if isinstance(e, GuidanceTextEvent)]
 
 
 async def test_slow_answer_spoken_while_scene_holds():
@@ -261,7 +261,7 @@ async def test_answer_dropped_when_scene_moved_meanwhile():
     guidance.stop()
     await asyncio.wait_for(task, 1.0)
     assert not arbiter.utterances
-    assert not events.events
+    assert not [e for e in events.events if isinstance(e, GuidanceTextEvent)]
 
 
 async def test_local_steering_speaks_while_the_cloud_is_silent():

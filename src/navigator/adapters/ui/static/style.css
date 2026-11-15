@@ -39,9 +39,9 @@ main {
   --max-h: 52vh;
   display: grid;
   grid-template-columns: repeat(
-    2,
+    3,
     min(
-      calc((100% - var(--gap)) / 2),
+      calc((100% - 2 * var(--gap)) / 3),
       calc(var(--max-h) * var(--ratio, 1.3333))
     )
   );

@@ -109,6 +109,11 @@ async def run(settings, duration_s, provided=None) -> None:
             hazard_phrase_cooldown_s=settings.hazard_phrase_cooldown_s,
             guidance_phrase_cooldown_s=settings.guidance_phrase_cooldown_s,
         )
+        trigger_settings = TriggerSettings(
+            min_interval_s=settings.trigger_min_interval_s,
+            keepalive_s=settings.trigger_keepalive_s,
+            max_age_s=settings.guidance_max_age_s,
+        )
         monitor = HazardMonitor(
             arbiter=arbiter,
             events=built["event_publisher"],
@@ -122,6 +127,7 @@ async def run(settings, duration_s, provided=None) -> None:
             ),
             deadline_offset_ns=offset_ns,
             tags_source=board.latest_tags,
+            trigger_settings=trigger_settings,
         )
         perception_loop = PerceptionLoop(
             source=built["frame_source"],
@@ -140,11 +146,7 @@ async def run(settings, duration_s, provided=None) -> None:
             events=built["event_publisher"],
             clock=clock,
             trace=trace,
-            trigger_settings=TriggerSettings(
-                min_interval_s=settings.trigger_min_interval_s,
-                keepalive_s=settings.trigger_keepalive_s,
-                max_age_s=settings.guidance_max_age_s,
-            ),
+            trigger_settings=trigger_settings,
             steering_settings=SteeringSettings(
                 look_m=settings.steering_look_m,
                 half_width_m=settings.path_half_width_m,

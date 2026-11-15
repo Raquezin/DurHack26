@@ -10,6 +10,7 @@ from navigator.domain.events import (
     Outcome,
     PreviewEvent,
     PreviewKind,
+    RouteEvent,
     StageTiming,
     TimingEvent,
     UtteranceEvent,
@@ -116,3 +117,29 @@ def test_inf_serialised_as_null_and_preview_slim(factory):
             "frame_id": 2,
             "jpeg_bytes": 3,
         }
+
+
+def test_route_event_wire_format():
+    publisher, stream = _log()
+    publisher.publish(
+        RouteEvent(
+            frame_id=4,
+            waypoints=((0.0, 0.0), (0.93, 3.0), (0.93, 8.0)),
+            boundary=((-1.11, 2.0), (-0.96, 2.0)),
+            blocker=(0.0, 2.0),
+            label="chair",
+        )
+    )
+    publisher.publish(
+        RouteEvent(frame_id=5, waypoints=((0.0, 0.0),), boundary=(), blocker=None, label=None)
+    )
+    bent, empty = (json.loads(line) for line in stream.getvalue().splitlines())
+    assert bent == {
+        "type": "route",
+        "frame_id": 4,
+        "waypoints": [[0.0, 0.0], [0.93, 3.0], [0.93, 8.0]],
+        "boundary": [[-1.11, 2.0], [-0.96, 2.0]],
+        "blocker": [0.0, 2.0],
+        "label": "chair",
+    }
+    assert empty["blocker"] is None and empty["label"] is None

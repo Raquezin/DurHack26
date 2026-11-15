@@ -240,6 +240,7 @@ WebSocket, JSON events are text messages and previews are binary messages.
 | `hazard` | `level`, `bearing`, `distance_m`, `frame_id` | `HazardMonitor` |
 | `guidance_text` | `request_id`, `delta`, `final` | `GuidanceLoop` |
 | `tags` | `frame_id`, `tags` (each `label`, `outline`) | `GuidanceLoop` |
+| `route` | `frame_id` and the walking line seen from above; every point is `(x_m, z_m)` in metres from the camera, `x_m` to the user's right, `z_m` ahead. `waypoints` starts at `(0, 0)`: one leg on an open path, otherwise a bend toward the side steering chose and then straight on while that lane stays clear, cut short when the gap is too tight to walk through; the origin alone when the view ahead is unknown. `boundary` has two points per grid column, left edge then right edge, at the depth that column is clear to (`0` when unknown), so the origin plus `boundary` outlines the free space. `blocker` is the nearest surface inside the walking lane or `null`; `label` is the tag lying on it or `null` | `GuidanceLoop` |
 | `utterance` | `text`, `priority`, `outcome`, `age_ms` | `SpeechArbiter` |
 | `timing` | stage name → p50, p95, p99 in ms | every service |
 | `preview` | `kind` (`camera` or `depth`), `frame_id`, `jpeg` | `PerceptionLoop` |
@@ -252,12 +253,11 @@ A `preview` event is sent as the binary message: byte 0 is the kind
 rest a JPEG. Every other event is a JSON text message with a `type` field;
 `inf` distances are sent as `null`.
 
-In code each event type is a frozen dataclass in `domain/events.py`
-(`GeometryEvent`, `HazardEvent`, `GuidanceTextEvent`, `TagsEvent`,
-`UtteranceEvent`, `TimingEvent`, `PreviewEvent`) with a class-level `type` tag, and `Event` is
-their union. `TimingEvent.stages` is a tuple of `StageTiming(name, p50_ms,
-p95_ms, p99_ms)`; `outcome` is the `Outcome` enum and `kind` the
-`PreviewKind` enum.
+In code each event type is a frozen dataclass in `domain/events.py` named
+after its `type` (`RouteEvent` for `route`, `GuidanceTextEvent` for
+`guidance_text`) with a class-level `type` tag, and `Event` is their union.
+`TimingEvent.stages` is a tuple of `StageTiming(name, p50_ms, p95_ms,
+p99_ms)`; `outcome` is the `Outcome` enum and `kind` the `PreviewKind` enum.
 
 ## 7. Fakes and fixtures
 

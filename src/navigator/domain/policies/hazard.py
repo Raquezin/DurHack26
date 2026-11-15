@@ -2,9 +2,8 @@ from dataclasses import dataclass, replace
 
 from navigator.domain.geometry import SceneGeometry
 from navigator.domain.hazard import Bearing, HazardAlert, HazardLevel
-from navigator.domain.path import column_clearance, in_path, side
+from navigator.domain.path import bearing, blocking_zone, walk_clearance
 
-_BEARINGS = {-1: Bearing.LEFT, 0: Bearing.AHEAD, 1: Bearing.RIGHT}
 _SWITCH_RATIO = 1.5
 _ROOM_CAP_M = 10.0
 _RANK = {None: 0, HazardLevel.CAUTION: 1, HazardLevel.STOP: 2}
@@ -28,31 +27,16 @@ class AlertState:
     distance_m: float = float("inf")
 
 
-def _below_head(geometry: SceneGeometry) -> range:
-    return range(1, geometry.rows) if geometry.rows > 1 else range(geometry.rows)
-
-
 def evaluate(
     geometry: SceneGeometry, thresholds: HazardThresholds
 ) -> HazardAlert | None:
-    best = None
-    for row in _below_head(geometry):
-        for col in range(geometry.cols):
-            i = row * geometry.cols + col
-            distance = geometry.distances_m[i]
-            if not geometry.valid[i] or not in_path(
-                geometry, col, distance, thresholds.half_width_m
-            ):
-                continue
-            key = (distance, abs(side(col, geometry.cols)))
-            if best is None or key < best[0]:
-                best = (key, col)
-    if best is None or best[0][0] >= thresholds.caution_m:
+    zone = blocking_zone(geometry, thresholds.half_width_m)
+    if zone is None or zone[0] >= thresholds.caution_m:
         return None
-    distance, col = best[0][0], best[1]
+    distance, _, col = zone
     return HazardAlert(
         level=HazardLevel.STOP if distance < thresholds.stop_m else HazardLevel.CAUTION,
-        bearing=_BEARINGS[side(col, geometry.cols)],
+        bearing=bearing(col, geometry.cols),
         distance_m=distance,
         frame_id=geometry.frame_id,
         t_capture_ns=geometry.t_capture_ns,
@@ -60,13 +44,13 @@ def evaluate(
 
 
 def escape(geometry: SceneGeometry, kept: Bearing | None = None) -> Bearing | None:
-    clearance = column_clearance(geometry, _below_head(geometry), float("inf"))
+    clearance = walk_clearance(geometry, float("inf"))
     room: dict[Bearing, tuple[float, float]] = {}
     for col, d in enumerate(clearance):
-        bearing = _BEARINGS[side(col, geometry.cols)]
-        if bearing is not Bearing.AHEAD:
-            deepest, total = room.get(bearing, (0.0, 0.0))
-            room[bearing] = (max(deepest, d), total + min(d, _ROOM_CAP_M))
+        way = bearing(col, geometry.cols)
+        if way is not Bearing.AHEAD:
+            deepest, total = room.get(way, (0.0, 0.0))
+            room[way] = (max(deepest, d), total + min(d, _ROOM_CAP_M))
     if not room:
         return None
     best = max(room, key=room.get)

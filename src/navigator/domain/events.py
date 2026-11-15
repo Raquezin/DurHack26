@@ -54,6 +54,16 @@ class TagsEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class RouteEvent:
+    frame_id: int
+    waypoints: tuple[tuple[float, float], ...]
+    boundary: tuple[tuple[float, float], ...]
+    blocker: tuple[float, float] | None
+    label: str | None
+    type: ClassVar[str] = "route"
+
+
+@dataclass(frozen=True, slots=True)
 class UtteranceEvent:
     text: str
     priority: Priority
@@ -89,6 +99,7 @@ Event = (
     | HazardEvent
     | GuidanceTextEvent
     | TagsEvent
+    | RouteEvent
     | UtteranceEvent
     | TimingEvent
     | PreviewEvent

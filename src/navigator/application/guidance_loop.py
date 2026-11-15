@@ -2,16 +2,21 @@ import asyncio
 from contextlib import aclosing, suppress
 from dataclasses import replace
 
+from navigator.application.describing import description
 from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.application.scene_board import SceneBoard
-from navigator.domain.events import GuidanceTextEvent, TagsEvent
+from navigator.domain.events import GuidanceTextEvent, RouteEvent, TagsEvent
 from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
+from navigator.domain.path import blocking_zone
 from navigator.domain.phrases import PHRASE_TEXT, PhraseId
+from navigator.domain.policies.describe import blocker_tag, tag_map
+from navigator.domain.policies.route import boundary, plan, zone_point
 from navigator.domain.policies.steering import (
     SteeringSettings,
     SteeringState,
     advise,
+    gap,
     path_clearance,
     permits,
     steer,
@@ -89,6 +94,7 @@ class GuidanceLoop:
         wanted, committed = steer(
             geometry, self._steering, self._steering_state.committed
         )
+        blocker = self._route(geometry, committed)
         road_hides_open_path = wanted in _OPEN_PATH and self._road_ahead()
         if road_hides_open_path:
             wanted = None
@@ -100,6 +106,33 @@ class GuidanceLoop:
             deadline_ns = geometry.t_capture_ns + _LOCAL_DEADLINE_NS - self._offset_ns
             phrase, text = self._render(phrase, geometry)
             self._speak(phrase, text, geometry, deadline_ns)
+            if committed is not None and blocker is not None:
+                self._arbiter.submit(
+                    description(*blocker, geometry, self._offset_ns)
+                )
+
+    def _route(
+        self, geometry: SceneGeometry, committed: int | None
+    ) -> tuple[SceneTag, int] | None:
+        run = None if committed is None else gap(geometry, self._steering, committed)
+        zone = blocking_zone(geometry, self._steering.half_width_m)
+        tag = zone and blocker_tag(
+            self._board.latest_tags(),
+            geometry,
+            zone,
+            self._steering.half_width_m,
+            self._settings,
+        )
+        self._events.publish(
+            RouteEvent(
+                frame_id=geometry.frame_id,
+                waypoints=plan(geometry, self._steering, run),
+                boundary=boundary(geometry, self._steering),
+                blocker=zone and zone_point(geometry, zone[2], zone[0]),
+                label=tag.label if tag else None,
+            )
+        )
+        return (tag, zone[2]) if tag else None
 
     def _maybe_request(self, perception: Perception) -> None:
         if perception.camera_jpeg is None or (self._task and not self._task.done()):
@@ -166,7 +199,7 @@ class GuidanceLoop:
     def _note_tags(self, asked: SceneGeometry, tags: tuple[SceneTag, ...]) -> None:
         if not tags:
             return
-        self._board.set_tags(asked.t_capture_ns, tags)
+        self._board.set_tags(tag_map(asked, tags))
         self._events.publish(TagsEvent(frame_id=asked.frame_id, tags=tags))
         if has_road_crossing(tags):
             self._road_until_ns = self._clock.now_ns() + _ROAD_HOLD_NS

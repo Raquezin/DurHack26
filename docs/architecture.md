@@ -65,8 +65,8 @@ and everyone else sees forty-five numbers and two JPEGs.
 | Service | Reads | Does | Writes |
 | --- | --- | --- | --- |
 | `PerceptionLoop` | `FrameSource` | Runs `ScenePerception` on the newest frame | `SceneBoard`, `EventPublisher` |
-| `HazardMonitor` | each new geometry | Applies `HazardPolicy` to obstacles inside the walking path; speaks when the alert rises, changes side or gets closer, confirmed over consecutive frames | `SpeechArbiter`, `EventPublisher` |
-| `GuidanceLoop` | `SceneBoard` | Applies `SteeringPolicy` every frame (local, no network); applies `TriggerPolicy` and calls `SceneReasoner` in the background; speaks a cloud answer only if the scene still matches | `SpeechArbiter`, `EventPublisher` |
+| `HazardMonitor` | each new geometry | Applies `HazardPolicy` to obstacles inside the walking path; speaks when the alert rises, changes side or gets closer, confirmed over consecutive frames, then names the tag lying on the blocking surface when the tags still match the scene | `SpeechArbiter`, `EventPublisher` |
+| `GuidanceLoop` | `SceneBoard` | Applies `SteeringPolicy` every frame (local, no network), draws the walking line from that same decision and publishes it as a `route` event, and names the tag on the surface blocking the line after a veer or turn; applies `TriggerPolicy` and calls `SceneReasoner` in the background; speaks a cloud answer only if the scene still matches | `SpeechArbiter`, `EventPublisher` |
 | `SpeechArbiter` | utterances | Applies `ArbitrationPolicy`: priority, pre-emption, staleness, repetition; resolves audio from phrase cache or `SpeechSynthesizer` | `AudioSink`, `EventPublisher` |
 
 `SceneBoard` is the one shared in-memory structure: a thread-safe holder of

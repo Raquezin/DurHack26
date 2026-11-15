@@ -2,14 +2,14 @@ import asyncio
 import threading
 
 from navigator.domain.geometry import Perception
-from navigator.domain.tags import SceneTag
+from navigator.domain.policies.describe import TagMap
 
 
 class SceneBoard:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._latest: Perception | None = None
-        self._tags: tuple[int, tuple[SceneTag, ...]] | None = None
+        self._tags: TagMap | None = None
         self._waiters: list[tuple[asyncio.AbstractEventLoop, asyncio.Future]] = []
 
     def put(self, perception: Perception) -> None:
@@ -33,11 +33,11 @@ class SceneBoard:
         with self._lock:
             return self._latest
 
-    def set_tags(self, t_ns: int, tags: tuple[SceneTag, ...]) -> None:
+    def set_tags(self, tags: TagMap) -> None:
         with self._lock:
-            self._tags = (t_ns, tags)
+            self._tags = tags
 
-    def latest_tags(self) -> tuple[int, tuple[SceneTag, ...]] | None:
+    def latest_tags(self) -> TagMap | None:
         with self._lock:
             return self._tags
 

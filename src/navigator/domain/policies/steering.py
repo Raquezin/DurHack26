@@ -1,7 +1,7 @@
 from dataclasses import dataclass, replace
 
 from navigator.domain.geometry import SceneGeometry
-from navigator.domain.path import column_clearance, gap_width_m, in_path, side
+from navigator.domain.path import gap_width_m, in_path, side, walk_clearance
 from navigator.domain.phrases import PhraseId
 
 _VEER = {-1: PhraseId.VEER_LEFT, 1: PhraseId.VEER_RIGHT}
@@ -33,8 +33,7 @@ class SteeringState:
 
 
 def _clearance(geometry: SceneGeometry, settings: SteeringSettings) -> tuple[float, ...]:
-    rows = range(1, geometry.rows) if geometry.rows > 1 else range(geometry.rows)
-    return column_clearance(geometry, rows, settings.max_m)
+    return walk_clearance(geometry, settings.max_m)
 
 
 def path_clearance(geometry: SceneGeometry, settings: SteeringSettings) -> float:
@@ -92,12 +91,34 @@ def steer(
     else:
         chosen = best
     centre = (geometry.cols - 1) / 2
-    col = max(
+    col = _target(geometry, clearance, wide, chosen)
+    table = _VEER if abs(col - centre) <= geometry.cols / 5 else _TURN
+    return table[chosen], chosen
+
+
+def _target(
+    geometry: SceneGeometry, clearance: tuple[float, ...], wide: set[int], chosen: int
+) -> int:
+    centre = (geometry.cols - 1) / 2
+    return max(
         (c for c in wide if side(c, geometry.cols) == chosen),
         key=lambda c: (clearance[c], -abs(c - centre)),
     )
-    table = _VEER if abs(col - centre) <= geometry.cols / 5 else _TURN
-    return table[chosen], chosen
+
+
+def gap(
+    geometry: SceneGeometry, settings: SteeringSettings, chosen: int
+) -> tuple[int, int] | None:
+    clearance = _clearance(geometry, settings)
+    wide = _wide_enough(geometry, clearance, settings)
+    if not any(side(c, geometry.cols) == chosen for c in wide):
+        return None
+    first = last = _target(geometry, clearance, wide, chosen)
+    while first - 1 in wide:
+        first -= 1
+    while last + 1 in wide:
+        last += 1
+    return first, last
 
 
 def permits(

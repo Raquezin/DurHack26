@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { Hazard } from "./Hazard.jsx";
 import { createMotion } from "./motion.js";
+import { Route } from "./Route.jsx";
 import { Tags } from "./Tags.jsx";
 
 const KIND_CAMERA = 1;
@@ -62,7 +63,7 @@ export function useFeeds() {
   return { camera, depth, ratio, motion, onPreview };
 }
 
-export function Feeds({ feeds, hazard, tags, link }) {
+export function Feeds({ feeds, route, hazard, tags, link }) {
   return (
     <section
       className="feeds"
@@ -87,6 +88,7 @@ export function Feeds({ feeds, hazard, tags, link }) {
         </div>
         <figcaption>Depth</figcaption>
       </figure>
+      <Route route={route} />
     </section>
   );
 }
