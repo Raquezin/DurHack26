@@ -122,14 +122,14 @@ class WebEventPublisher:
         loop = self._loop
         if loop is None or loop.is_closed():
             return
-        if isinstance(event, PreviewEvent):
-            kind, payload = event.kind, event_to_preview_bytes(event)
-        else:
-            kind, payload = None, json.dumps(event_to_json(event))
         with self._clients_lock:
             clients = list(self._clients)
         if not clients:
             return
+        if isinstance(event, PreviewEvent):
+            kind, payload = event.kind, event_to_preview_bytes(event)
+        else:
+            kind, payload = None, json.dumps(event_to_json(event))
         for client in clients:
             loop.call_soon_threadsafe(client.offer, kind, payload)
 

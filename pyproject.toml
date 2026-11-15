@@ -19,7 +19,6 @@ gpu = [
 cloud = [
     "google-genai>=3.0.0",
     "httpx>=0.28.1",
-    "websockets>=17.4",
 ]
 audio = [
     "sounddevice>=0.5.6",

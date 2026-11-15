@@ -189,6 +189,11 @@ not attention.
 - **Pinned host memory** for the upload buffer; non-blocking copy.
 - **Warm-up:** 20 forward passes, all kernels, one dummy VLM request, one
   TTS request and the audio stream opened before the user starts walking.
+  The labeller runs two passes at both preview orientations when it
+  loads: its first live pass went from 246 ms to 68 ms and the worst
+  depth frame beside it from 98 ms to 35 ms (ours, `bench/walk_latency.py`).
+  With the labeller sharing the GPU, perception is 30.17 ms p99, over the
+  25 ms bound: 51 of 1099 frames over 25 ms, 2 over 33 ms.
 - **Hazard rule in the GPU thread.** The decision runs immediately after
   the 15 floats arrive, with no thread hop.
 

@@ -97,9 +97,9 @@ Camera → geometry → trigger → Gemini → ElevenLabs → headphones, p50.
 | Trigger, JPEG encode, request build | 10 | [E] |
 | Network + time to first token | 806 | ours, G2 p50 with image; 1207 p95; 1.2–4.2 s on recorded walk frames at M1 |
 | First phrase complete (≈ 12 tokens at ≈ 290 tokens/s) | 40 | [M] output speed |
-| TTS time to first audio | 248 | ours, G3 p50; 272 p95 |
+| TTS time to first audio | 192 | ours, G3 p50; 206 p95 |
 | Audio output | 25 | [E] |
-| **Total, streamed TTS** | **≈ 1.23 s** | sum; over the 1.0 s target |
+| **Total, streamed TTS** | **≈ 1.17 s** | sum; over the 1.0 s target |
 | **Total, phrase-cache hit (no TTS)** | **≈ 0.98 s** | sum |
 
 Notes:
@@ -244,16 +244,16 @@ means changing the model, resolution or technique, not relaxing the bound.
 
 Measured with the trace (ours, RTX 5070 Ti Laptop, p50 / p95 / p99 in ms):
 
-| Stage | Webcam device, 10 minutes, cloud fakes | Recorded walk looped for 150 s, real Gemini and ElevenLabs |
-| --- | --- | --- |
-| `frame_wait` | 0.69 / 0.89 / 1.16 | 0.19 / 0.36 / 0.42 |
-| `perception` | 14.99 / 15.45 / 15.66 | 15.32 / 15.90 / 16.25 |
-| `previews` | 0.51 / 0.65 / 0.69 | 0.46 / 0.56 / 0.59 |
-| `hazard_decision` | one alert | 0.16 / 0.73 / 0.79 |
-| `hazard` | one alert, 16.2 | 15.91 / 16.37 / 22.10 |
-| `reasoner` | fake | 784 / 941 / 1018 |
-| `tts` | fake | no samples: every answer was a catalogue phrase |
-| `guidance` | none spoken | 16.3 / 812 / 816 |
+| Stage | Webcam device, 10 minutes, cloud fakes | Recorded walk looped for 150 s, real Gemini and ElevenLabs | Recorded walk, 40 s, local labeller, speech fake (`bench/walk_latency.py`) |
+| --- | --- | --- | --- |
+| `frame_wait` | 0.69 / 0.89 / 1.16 | 0.19 / 0.36 / 0.42 | 0.21 / 0.37 / 1.40 |
+| `perception` | 14.99 / 15.45 / 15.66 | 15.32 / 15.90 / 16.25 | 15.67 / 23.61 / 30.17, max 34.68 |
+| `previews` | 0.51 / 0.65 / 0.69 | 0.46 / 0.56 / 0.59 | 0.43 / 0.50 / 0.77 |
+| `hazard_decision` | one alert | 0.16 / 0.73 / 0.79 | 0.49 / 0.60 / 0.61, 14 alerts |
+| `hazard` | one alert, 16.2 | 15.91 / 16.37 / 22.10 | 16.25 / 21.54 / 26.35, 14 alerts |
+| `reasoner` | fake | 784 / 941 / 1018 | 54.90 / 65.03 / 66.68, labeller pass |
+| `tts` | fake | no samples: every answer was a catalogue phrase | fake |
+| `guidance` | none spoken | 16.3 / 812 / 816 | 16.81 / 26.58 / 29.80, 7 spoken |
 
 - **Ten-minute run:** 17 779 frames, none skipped. The laptop webcam was
   shuttered and delivered its "camera off" placeholder, so this times the

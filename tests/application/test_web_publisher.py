@@ -178,3 +178,35 @@ async def test_index_served():
                 assert "app.js" in body
     finally:
         await publisher.__aexit__(None, None, None)
+
+
+async def test_publish_without_clients_never_serialises(monkeypatch):
+    from navigator.adapters.ui import web
+
+    publisher, _ = await _serve()
+    try:
+        calls = []
+        monkeypatch.setattr(
+            web, "event_to_json", lambda event: calls.append(event)
+        )
+        monkeypatch.setattr(
+            web,
+            "event_to_preview_bytes",
+            lambda event: calls.append(event),
+        )
+        publisher.publish(
+            GeometryEvent(
+                frame_id=1,
+                distances_m=(1.0,),
+                valid=(True,),
+                age_ms=1.0,
+            )
+        )
+        publisher.publish(
+            PreviewEvent(
+                kind=PreviewKind.CAMERA, frame_id=1, jpeg=b"jpeg"
+            )
+        )
+        assert calls == []
+    finally:
+        await publisher.__aexit__(None, None, None)

@@ -68,8 +68,9 @@ Camera (30 fps)
   event-triggered with at most one request in flight, never per frame. It
   reasons about route and the 2–5 m range; nearer than that belongs to the
   hazard tier.
-- **Speech** — ElevenLabs `eleven_flash_v2_5` over a persistent WebSocket for
-  free-form guidance; the phrase cache for hazards and common instructions.
+- **Speech** — ElevenLabs `eleven_flash_v2_5` over the HTTP streaming
+  endpoint on a kept-open client for free-form guidance; the phrase cache
+  for hazards and common instructions.
 - **Speech arbiter** — hazards interrupt guidance; stale utterances are
   dropped; nothing is repeated needlessly.
 
@@ -142,7 +143,8 @@ what the camera sees, what the model perceives, what the system says.
 ## Sponsor / API usage
 
 - **ElevenLabs** — text-to-speech with `eleven_flash_v2_5`: streamed over
-  WebSocket for guidance, pre-rendered for the phrase cache.
+  the HTTP endpoint on a kept-open client for guidance, pre-rendered for
+  the phrase cache.
 - **Google API** — vision-language reasoning with `gemini-3.5-flash-lite`
   over small RGB frames
   and zone distances.

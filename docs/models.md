@@ -14,7 +14,7 @@ section 2, the rest in section 7).
 | --- | --- | --- | --- |
 | Depth | Depth Anything 3 Metric-Large (`da3metric-large`) | DA3 Metric-Large at long side 392; then DA V2 Metric Hypersim-S | local GPU |
 | Reasoning | `gemini-3.5-flash-lite`, thinking `MINIMAL`, streamed | none: `gemini-2.5-flash-lite` refuses our key (G2) | Google API |
-| Speech, guidance | ElevenLabs `eleven_flash_v2_5`, `stream-input` WebSocket | HTTP streaming endpoint, same model | ElevenLabs API |
+| Speech, guidance | ElevenLabs `eleven_flash_v2_5`, HTTP streaming endpoint | — | ElevenLabs API |
 | Speech, hazards | Same model, rendered once at startup into a local phrase cache | — | local playback |
 
 ## 2. Depth model
@@ -201,16 +201,16 @@ Paris. Budget 150–350 ms.
 
 **`eleven_flash_v2_5`** in both tiers.
 
-- **Guidance tier:** `stream-input` WebSocket, kept open for the session.
-  - `auto_mode=true` so short sentences are not held back for more text.
-  - `flush: true` after each instruction.
+- **Guidance tier:** the HTTP streaming endpoint on a client kept open
+  for the session.
   - `output_format=pcm_24000`: raw PCM, no decoder, no container header.
-  - A single space every 15 s keeps the socket open (20 s inactivity limit).
   - A default (premade) voice; professional voice clones are slower.
 - **Hazard tier and frequent guidance: phrase cache.** At startup every
   phrase in the catalogue is rendered once with the same voice and stored as
   PCM on disk. Hazard alerts play from memory with no network. Guidance that
   resolves to a catalogue phrase also plays from the cache and skips TTS.
+  The cache also holds "Continue for N metres." for N = 0–9, and a
+  streamed sentence is kept in memory after it has played once.
 
 ## 5. Not used
 
@@ -246,7 +246,7 @@ the demo hardware and venue network.
 | G1 | DA3 Metric-L forward pass on our GPU, warm, 1000 frames | ≤ 20 ms p99 | lower input resolution, then fall back to DA V2 Metric-S |
 | G1b | Distance error against a tape measure at 1, 2, 3 m | ≤ 15 % | apply scale correction; fix intrinsics |
 | G2 | Time to first token with the real payload, both Gemini models | ≤ 700 ms p50 and ≥ 90 % under 1.0 s | smaller image; shorter prompt; priority tier; other model |
-| G3 | ElevenLabs time to first audio over the open WebSocket | ≤ 350 ms p95 | regional endpoint; HTTP streaming; widen phrase cache |
+| G3 | ElevenLabs time to first audio on the kept-open client | ≤ 350 ms p95 | regional endpoint; widen phrase cache |
 | G4 | Camera glass-to-frame delay per capture format | ≤ 70 ms | other pixel format, resolution or camera |
 
 Results (ours, November 2026):
@@ -255,7 +255,7 @@ Results (ours, November 2026):
 | --- | --- | --- | --- |
 | G1b | iPhone in portrait, 480×640, by hand at a wall, `hfov_deg=58` | 1 m +11.8 %, 2 m −3.5 %, 3 m +7.1 % | pass, scale 1.0 |
 | G2 | a new walk frame per request, server network, 12 requests | 1037 ms p50, 11.4 s p95, 42 % under 1.0 s | fail |
-| G3 | `eleven_flash_v2_5`, WebSocket per request, 20 sentences | 248 ms p50, 272 ms p95, 380 ms p99 | pass |
+| G3 | `eleven_flash_v2_5`, HTTP stream on the kept-open client, 20 sentences | 192 ms p50, 206 ms p95, 206 ms p99 (a WebSocket per request: 248, 272, 380) | pass |
 | G4 | webcam, all four modes, `exposure_dynamic_framerate` off | frame interval 32.1 ms p50, ≤ 36.5 ms p99 | glass-to-frame unmeasured |
 
 - G1b: at 70° every distance read 20–25 % short; 58° (iPhone wide camera,

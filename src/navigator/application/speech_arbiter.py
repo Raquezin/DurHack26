@@ -6,7 +6,7 @@ from navigator.application.latency_trace import LatencyTrace, Stage
 from navigator.application.phrase_cache import PhraseCache
 from navigator.domain.events import Outcome, UtteranceEvent
 from navigator.domain.policies import arbitration
-from navigator.domain.speech import Utterance
+from navigator.domain.speech import PcmChunk, Utterance
 from navigator.ports.audio_sink import AudioSink
 from navigator.ports.clock import Clock
 from navigator.ports.event_publisher import EventPublisher
@@ -75,8 +75,9 @@ class SpeechArbiter:
             generation = self._generation
             self._current = utterance
             self._current_started = False
-        if utterance.phrase is not None and self._cache.has(utterance.phrase):
-            self._speak_cached(utterance)
+        clip = self._cache.get(utterance.text)
+        if clip is not None:
+            self._speak_cached(utterance, clip)
             return
         asyncio.run_coroutine_threadsafe(
             self._stream(utterance, generation, now), self._loop
@@ -87,11 +88,11 @@ class SpeechArbiter:
             return self._hazard_cooldown_ns
         return self._guidance_cooldown_ns
 
-    def _speak_cached(self, utterance: Utterance) -> None:
+    def _speak_cached(self, utterance: Utterance, clip: PcmChunk) -> None:
         if arbitration.is_stale(utterance, self._clock.now_ns()):
             self._publish(utterance, Outcome.DROPPED_STALE)
             return
-        self._sink.play(self._cache.get(utterance.phrase))
+        self._sink.play(clip)
         self._trace.record(
             Stage[utterance.priority.name],
             self._clock.now_ns() - utterance.t_capture_ns,
@@ -105,6 +106,7 @@ class SpeechArbiter:
         self, utterance: Utterance, generation: int, submitted_ns: int
     ) -> None:
         started = False
+        played: list[PcmChunk] = []
         try:
             async for chunk in self._synthesizer.stream(utterance.text):
                 with self._lock:
@@ -125,9 +127,16 @@ class SpeechArbiter:
                         self._last_spoken[_repeat_key(utterance)] = now
                         self._current_started = True
                     self._sink.play(chunk)
+                    played.append(chunk)
                     self._publish(utterance, Outcome.SPOKEN)
                     continue
                 self._sink.play(chunk)
+                played.append(chunk)
+            if played:
+                self._cache.remember(
+                    utterance.text,
+                    PcmChunk(samples=b"".join(c.samples for c in played)),
+                )
         except Exception as exc:
             print(f"tts {exc}", file=sys.stderr, flush=True)
         finally:

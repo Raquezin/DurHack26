@@ -9,7 +9,7 @@ from navigator.domain.events import GuidanceTextEvent, RouteEvent, TagsEvent
 from navigator.domain.geometry import Perception, SceneGeometry
 from navigator.domain.guidance import GuidanceInstruction, GuidanceRequest
 from navigator.domain.path import blocking_zone
-from navigator.domain.phrases import PHRASE_TEXT, PhraseId
+from navigator.domain.phrases import PHRASE_TEXT, PhraseId, continue_for
 from navigator.domain.policies.describe import blocker_tag, tag_map
 from navigator.domain.policies.route import boundary, plan, zone_point
 from navigator.domain.policies.steering import (
@@ -215,7 +215,7 @@ class GuidanceLoop:
         metres = int(min(path_clearance(geometry, self._steering), self._steering.max_m))
         if metres >= self._steering.max_m:
             return PhraseId.PATH_CLEAR, PHRASE_TEXT[PhraseId.PATH_CLEAR]
-        return None, f"Continue for {metres} metres."
+        return None, continue_for(metres)
 
     def _announce(
         self,

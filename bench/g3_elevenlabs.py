@@ -62,7 +62,7 @@ async def main_async(args) -> int:
     verdict = "PASS" if p95 <= BOUND_MS else "FAIL"
     print(
         f"G3 {verdict} first audio p50 {p50:.0f} ms, p95 {p95:.0f} ms, p99 {p99:.0f} ms "
-        f"over {len(times)} of {args.n} requests (WebSocket opened per request)"
+        f"over {len(times)} of {args.n} requests (HTTP stream on the kept-open client)"
     )
     return 0
 

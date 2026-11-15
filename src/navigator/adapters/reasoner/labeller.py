@@ -34,6 +34,8 @@ APPEAR_AREA, STAY_AREA = 0.03, 0.015
 OBJECT_SCORE = 0.5
 OBJECT_AREA = 0.01
 OUTLINE_TOLERANCE_PX = 2.0
+WARM_UP_PASSES = 2
+WARM_UP_SHAPES = ((384, 288), (288, 384))
 _SMOOTHING = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 
 
@@ -103,6 +105,20 @@ class LabellerSceneReasoner:
         self._detector = detection.load(detector)
         self._segmenter = segmentation.load(segmenter)
         self._masker = masking.load(masker)
+        for height, width in WARM_UP_SHAPES:
+            for _ in range(WARM_UP_PASSES):
+                picture = np.random.default_rng(0).integers(
+                    0, 256, (height, width, 3), dtype=np.uint8
+                )
+                self._segmenter(picture).labels.cpu()
+                self._detector(picture).to_list()
+                self._masker(
+                    self._masker.get_image_embeddings(picture),
+                    input_boxes=[
+                        [0.0, 0.0, float(width), float(height)]
+                    ],
+                    multimask_output=False,
+                ).masks.cpu()
         return self
 
     def __exit__(self, *exc) -> None:

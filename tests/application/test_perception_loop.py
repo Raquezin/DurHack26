@@ -54,3 +54,31 @@ def test_preview_events_every_nth_frame():
     assert len(previews) == 2
     kinds = {p.kind.value for p in previews}
     assert kinds == {"camera", "depth"}
+
+
+def test_on_perception_runs_before_events_published():
+    clock = ManualClock()
+    source = SyntheticFrameSource(clock=clock, width=8, height=6, fps=30)
+    scripted = ScriptedScenePerception(
+        clock=clock,
+        rows=3,
+        cols=5,
+        horizontal_fov_deg=70.0,
+        start_m=4.0,
+        speed_mps=0.5,
+    )
+    events = CollectingEventPublisher()
+    seen = []
+    loop = PerceptionLoop(
+        source=source,
+        perception=scripted,
+        board=SceneBoard(),
+        events=events,
+        clock=clock,
+        trace=LatencyTrace(),
+        on_perception=lambda perception: seen.append(len(events.events)),
+        preview_every=3,
+    )
+    loop.step(-1, timeout_s=0.1)
+    assert seen == [0]
+    assert len(events.events) == 3

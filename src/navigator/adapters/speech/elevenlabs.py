@@ -1,15 +1,10 @@
-import base64
-import json
 from collections.abc import AsyncIterator
-from urllib.parse import urlencode
 
 import httpx
-import websockets
 
 from navigator.domain.speech import PcmChunk
 
 HTTP_BASE = "https://api.elevenlabs.io"
-WS_BASE = "wss://api.elevenlabs.io"
 OUTPUT_FORMAT = "pcm_24000"
 
 
@@ -32,42 +27,21 @@ class ElevenLabsSpeechSynthesizer:
         await self._http.aclose()
         self._http = None
 
-    def _stream_url(self) -> str:
-        query = urlencode(
-            {
-                "model_id": self._model,
-                "output_format": OUTPUT_FORMAT,
-                "auto_mode": "true",
-            }
-        )
-        return (
-            f"{WS_BASE}/v1/text-to-speech/{self._voice_id}/stream-input?{query}"
-        )
-
     async def stream(self, text: str) -> AsyncIterator[PcmChunk]:
-        async with websockets.connect(
-            self._stream_url(),
-            additional_headers={"xi-api-key": self._api_key},
-            close_timeout=0.5,
-        ) as socket:
-            await socket.send(json.dumps({"text": " "}))
-            await socket.send(
-                json.dumps({"text": text.strip() + " ", "flush": True})
-            )
-            await socket.send(json.dumps({"text": ""}))
+        async with self._http.stream(
+            "POST",
+            f"/v1/text-to-speech/{self._voice_id}/stream",
+            params={"output_format": OUTPUT_FORMAT},
+            json={"text": text.strip(), "model_id": self._model},
+        ) as response:
+            response.raise_for_status()
             carry = b""
-            async for raw in socket:
-                message = json.loads(raw)
-                if message.get("error") or message.get("message"):
-                    raise RuntimeError(f"elevenlabs: {message}")
-                if message.get("audio"):
-                    data = carry + base64.b64decode(message["audio"])
-                    cut = len(data) - len(data) % 2
-                    carry = data[cut:]
-                    if cut:
-                        yield PcmChunk(samples=data[:cut])
-                if message.get("isFinal"):
-                    return
+            async for data in response.aiter_bytes():
+                data = carry + data
+                cut = len(data) - len(data) % 2
+                carry = data[cut:]
+                if cut:
+                    yield PcmChunk(samples=data[:cut])
 
     async def render(self, text: str) -> PcmChunk:
         response = await self._http.post(

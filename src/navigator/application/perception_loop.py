@@ -51,6 +51,8 @@ class PerceptionLoop:
                 Stage.PREVIEWS, done_ns - perception.t_ready_ns
             )
         self._board.put(perception)
+        if self._on_perception is not None:
+            self._on_perception(perception)
         geometry = perception.geometry
         age_ms = (self._clock.now_ns() - geometry.t_capture_ns) / 1_000_000
         self._events.publish(
@@ -77,8 +79,6 @@ class PerceptionLoop:
                     jpeg=perception.depth_jpeg,
                 )
             )
-        if self._on_perception is not None:
-            self._on_perception(perception)
         return frame.frame_id
 
     def run(self, stop: threading.Event) -> None:

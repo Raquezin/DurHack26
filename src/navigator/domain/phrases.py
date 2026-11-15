@@ -36,3 +36,10 @@ PHRASE_TEXT = {
     PhraseId.DOOR_AHEAD: "Door ahead.",
     PhraseId.ROAD_CROSSING: "Road crossing ahead. Stop.",
 }
+
+
+def continue_for(metres: int) -> str:
+    return f"Continue for {metres} metres."
+
+
+CACHED_TEXTS = (*PHRASE_TEXT.values(), *(continue_for(m) for m in range(10)))

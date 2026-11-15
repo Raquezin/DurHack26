@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 np = pytest.importorskip("numpy")
@@ -85,3 +87,55 @@ def test_boxes_the_detector_garbled_are_dropped():
     assert _names([_found("person", 0.9, box) for box in garbled]) == []
 
 
+
+
+def test_enter_warms_up_every_shape_and_leaves_seen_empty(monkeypatch):
+    shapes = {"segment": [], "detect": [], "embed": []}
+    masks = []
+
+    class _Cpu:
+        def cpu(self):
+            return self
+
+    class _Detections:
+        def to_list(self):
+            return []
+
+    def segmenter(picture):
+        shapes["segment"].append(picture.shape)
+        return SimpleNamespace(labels=_Cpu())
+
+    def detector(picture):
+        shapes["detect"].append(picture.shape)
+        return _Detections()
+
+    class _Masker:
+        def get_image_embeddings(self, picture):
+            shapes["embed"].append(picture.shape)
+            return picture.shape
+
+        def __call__(self, embeddings, input_boxes, multimask_output):
+            masks.append((embeddings, input_boxes, multimask_output))
+            return SimpleNamespace(masks=_Cpu())
+
+    monkeypatch.setattr(labeller.segmentation, "load", lambda name: segmenter)
+    monkeypatch.setattr(labeller.detection, "load", lambda name: detector)
+    monkeypatch.setattr(labeller.masking, "load", lambda name: _Masker())
+    reasoner = labeller.LabellerSceneReasoner("d", "s", "m")
+    with reasoner:
+        pass
+    expected = [(384, 288, 3)] * labeller.WARM_UP_PASSES + [
+        (288, 384, 3)
+    ] * labeller.WARM_UP_PASSES
+    assert shapes["segment"] == expected
+    assert shapes["detect"] == expected
+    assert shapes["embed"] == expected
+    boxes = [(288.0, 384.0)] * labeller.WARM_UP_PASSES + [
+        (384.0, 288.0)
+    ] * labeller.WARM_UP_PASSES
+    for (embeddings, input_boxes, multimask), (width, height) in zip(
+        masks, boxes
+    ):
+        assert input_boxes == [[0.0, 0.0, width, height]]
+        assert multimask is False
+    assert reasoner._seen == frozenset()

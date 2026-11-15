@@ -699,7 +699,6 @@ audio = [
 cloud = [
     { name = "google-genai" },
     { name = "httpx" },
-    { name = "websockets" },
 ]
 gpu = [
     { name = "cupy-cuda13x", extra = ["ctk"] },
@@ -733,7 +732,6 @@ requires-dist = [
     { name = "sounddevice", marker = "extra == 'audio'", specifier = ">=0.5.6" },
     { name = "torch", marker = "extra == 'gpu'", specifier = ">=2.15.0" },
     { name = "torchvision", marker = "extra == 'gpu'", specifier = ">=0.29.2" },
-    { name = "websockets", marker = "extra == 'cloud'", specifier = ">=17.4" },
 ]
 provides-extras = ["gpu", "cloud", "audio", "ui"]
 

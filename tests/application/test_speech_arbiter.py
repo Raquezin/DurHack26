@@ -16,14 +16,18 @@ async def _rig(
     synth_delay_s=0.0,
     hazard_cooldown_s=2.0,
     guidance_cooldown_s=5.0,
+    synth=None,
+    cache=None,
 ):
     clock = ManualClock()
     sink = RecordingAudioSink(clock=clock)
-    synth = ToneSpeechSynthesizer(
-        delay_s=synth_delay_s, seconds_per_char=0.02
-    )
-    cache = PhraseCache()
-    await cache.build(synth)
+    if synth is None:
+        synth = ToneSpeechSynthesizer(
+            delay_s=synth_delay_s, seconds_per_char=0.02
+        )
+    if cache is None:
+        cache = PhraseCache()
+        await cache.build(synth)
     events = CollectingEventPublisher()
     arbiter = SpeechArbiter(
         sink=sink,
