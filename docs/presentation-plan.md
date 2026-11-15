@@ -63,8 +63,8 @@ navigation assistant. No technical background needed.
 
 - **"What if the internet drops?"** The obstacle warnings and directions
   work without the internet. They are worked out on our computer.
-- **"How fast is it?"** A stop warning starts playing about a fiftieth of a
-  second after the camera sees the obstacle.
+- **"How fast is it?"** A stop warning starts playing about a tenth of a
+  second after the camera sees the obstacle — faster than a blink.
 - **"How is this better than a cane?"** It sees several metres ahead and
   tells you which way to go, not just that something is there.
 - **"What is next?"** Running it entirely on the phone, recognising doors

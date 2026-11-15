@@ -219,7 +219,7 @@ Paris. Budget 150–350 ms.
 | Object detector on the GPU (YOLO class) | The VLM already names objects from RGB. Stretch goal only. |
 | Local TTS | The phrase cache already removes the network from the hazard tier. |
 | Gemini TTS models | TTS is the ElevenLabs sponsor slot. |
-| Video depth models with temporal state | Per-frame depth plus a temporal filter on 15 zone values is enough. |
+| Video depth models with temporal state | Per-frame depth plus a temporal filter on 45 zone values is enough. |
 | INT8 quantisation | Vision transformers lose accuracy without careful calibration; fp16 already meets the bound. |
 
 ## 6. GPU memory

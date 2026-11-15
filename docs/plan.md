@@ -31,7 +31,7 @@ B and C work on their own laptops with fakes and replay until milestone M1.
 
 | | A — Perception | B — Guidance | C — Alerts, audio and UI |
 | --- | --- | --- | --- |
-| Slice | Camera in, fifteen distances out | Scene in, spoken guidance out | Distances in, sound in the ears and pixels on the screen |
+| Slice | Camera in, forty-five distances out | Scene in, spoken guidance out | Distances in, sound in the ears and pixels on the screen |
 | Tier | Feeds both | Guidance tier (cloud) | Hazard tier (local), output, observability |
 | Ports implemented | `FrameSource`, `ScenePerception` | `SceneReasoner`, `SpeechSynthesizer` | `AudioSink`, `EventPublisher` |
 | Services | `PerceptionLoop` | `GuidanceLoop` | `HazardMonitor`, `SpeechArbiter`, `SceneBoard` |

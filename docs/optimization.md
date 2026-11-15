@@ -73,7 +73,7 @@ Further levers if gate G1 fails, in order:
 
 1. **Input resolution.** Cost follows the token count,
    `(H / 14) × (W / 14)`. 518×686 is 1813 tokens; 392×518 is 1036. Our output
-   is 15 zone distances, so a small input loses little.
+   is 45 zone distances, so a small input loses little.
 2. **Skip the final upsample.** The models resize depth back to the camera
    resolution. We reduce to zones at the network's native output size.
 3. **CUDA graphs.** A launch costs the host 5–15 µs per kernel [M]. Capturing
@@ -109,11 +109,11 @@ shows that conversion matters.
 
 | | |
 | --- | --- |
-| Input | `depth`: h×w metres; per-row floor distance table; grid shape (3 rows × 5 columns) |
-| Output | 15 robust near-distances and 15 valid-pixel counts |
+| Input | `depth`: h×w metres; per-row floor distance table; grid shape (3 rows × 15 columns) |
+| Output | 45 robust near-distances and 45 valid-pixel counts |
 | Work | pass 1, one thread per pixel: skip invalid depth; skip pixels at or beyond the expected floor distance for their row; bin the rest into a log-spaced 64-bin histogram for the pixel's zone using atomic adds. Pass 2, one thread per zone: walk the histogram to the 5th percentile |
 | Replaces | downloading a full depth map every frame and running percentiles on the CPU |
-| Bound | ≤ 1 ms p99 including the 15-float download |
+| Bound | ≤ 1 ms p99 including the 45-float download |
 
 Design notes:
 

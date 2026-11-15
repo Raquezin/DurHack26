@@ -33,7 +33,7 @@ Camera (30 fps)
 │ Perception (local GPU)       │  fused preprocess → metric depth →
 │                              │  zone distances, every frame
 └──────────────────────────────┘
-      │ SceneGeometry: 15 zone distances (3 rows × 5 columns)
+      │ SceneGeometry: 45 zone distances (3 rows × 15 columns)
       ├─────────────────────────────────────────┐
       ▼                                         ▼
 ┌──────────────────────────┐      ┌───────────────────────────────┐
@@ -56,7 +56,7 @@ Camera (30 fps)
 
 - **Perception** — runs on our GPU on every frame. A fused kernel turns the
   camera frame into the network input, Depth Anything 3 Metric-Large produces
-  metric depth, and a second kernel reduces it to fifteen robust zone
+  metric depth, and a second kernel reduces it to forty-five robust zone
   distances with the floor removed. Fallback model: Depth Anything V2 Metric
   Small. Details in [models.md](models.md) and
   [optimization.md](optimization.md).

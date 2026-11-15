@@ -58,7 +58,7 @@ Dependencies point inward only: adapters → ports → application → domain.
 
 `ScenePerception` deliberately hides the depth map. Tensors never cross a
 port: the GPU pipeline, model choice and kernels are internal to one adapter,
-and everyone else sees fifteen numbers and two JPEGs.
+and everyone else sees forty-five numbers and two JPEGs.
 
 ## 4. Application services
 
