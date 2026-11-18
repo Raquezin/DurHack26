@@ -21,7 +21,6 @@ around a room or corridor guided entirely by the system's spoken instructions.
 | [optimization.md](optimization.md) | GPU techniques, the custom CUDA kernels we write, scheduling, cloud and audio paths |
 | [architecture.md](architecture.md) | Hexagonal structure, ports, services, threads, layout |
 | [contracts.md](contracts.md) | Frozen data types and interfaces between owners; fakes, fixtures, change protocol |
-| [plan.md](plan.md) | Split of the work between three people, phases, milestones, risks |
 
 ## Pipeline
 
@@ -111,8 +110,8 @@ debugging, and judges:
   sees: each thing is filled in and outlined with its label. Labels come
   from Gemini, which places them by zone, or with
   `--adapter scene_reasoner=labeller` from local models that need no
-  network: an object detector whose boxes prompt SAM 2 for the shapes, and
-  a segmentation model for walls, doors and stairs. The walking line is also
+  network: RT-DETRv2 supplies boxes for objects, and DINOv2 supplies outlines
+  for walls, doors, and stairs. The walking line is also
   drawn on the floor of the depth picture up to what blocks it, with its
   label and distance. A road crossing is red: depth cannot see a road, so
   that tag is what stops "keep going straight".
@@ -154,7 +153,7 @@ what the camera sees, what the model perceives, what the system says.
 ## Team & infra notes
 
 - **Team of 3**, split into three vertical slices with frozen contracts
-  between them ([plan.md](plan.md)):
+  between them:
   - **A — Perception:** camera, depth, GPU kernels, zone distances.
   - **B — Guidance:** Gemini reasoning, triggering, ElevenLabs speech.
   - **C — Alerts, audio and UI:** hazard rules, speech arbiter, audio

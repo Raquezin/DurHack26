@@ -223,6 +223,5 @@ npm run build
 | [docs/latency-budget.md](docs/latency-budget.md) | Bounds, per-stage budgets, measurements |
 | [docs/models.md](docs/models.md) | Depth, reasoning and speech model decisions |
 | [docs/optimization.md](docs/optimization.md) | GPU kernels, scheduling, phone and cloud links |
-| [docs/plan.md](docs/plan.md) | Work split, directory ownership, milestones |
 
 This is a hackathon proof of concept, not a medical device.

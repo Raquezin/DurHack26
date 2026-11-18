@@ -14,6 +14,7 @@ section 2, the rest in section 7).
 | --- | --- | --- | --- |
 | Depth | Depth Anything 3 Metric-Large (`da3metric-large`) | DA3 Metric-Large at long side 392; then DA V2 Metric Hypersim-S | local GPU |
 | Reasoning | `gemini-3.5-flash-lite`, thinking `MINIMAL`, streamed | none: `gemini-2.5-flash-lite` refuses our key (G2) | Google API |
+| Scene labelling (`labeller`) | RT-DETRv2 for object boxes and DINOv2 for structural outlines | — | local GPU |
 | Speech, guidance | ElevenLabs `eleven_flash_v2_5`, HTTP streaming endpoint | — | ElevenLabs API |
 | Speech, hazards | Same model, rendered once at startup into a local phrase cache | — | local playback |
 
@@ -217,7 +218,6 @@ Paris. Budget 150–350 ms.
 
 | Idea | Why not now |
 | --- | --- |
-| Object detector on the GPU (YOLO class) | The VLM already names objects from RGB. Stretch goal only. |
 | Local TTS | The phrase cache already removes the network from the hazard tier. |
 | Gemini TTS models | TTS is the ElevenLabs sponsor slot. |
 | Video depth models with temporal state | Per-frame depth plus a temporal filter on 45 zone values is enough. |
