@@ -80,19 +80,47 @@ uv run navigator --preset all-fakes --duration-s 3
 This prints the event stream (geometry, hazards, route, utterances) as JSON
 lines.
 
-## Running it for real
+## Running with a phone (our demo setup)
 
-Needs an NVIDIA GPU with CUDA, plus Gemini and ElevenLabs keys.
+This is the configuration we use: the phone streams camera frames and plays
+spoken directions, while an NVIDIA GPU with CUDA runs depth estimation and
+scene labelling on the host. Speech still uses ElevenLabs; Gemini is not needed.
+
+If you do not already have a `.env` file, copy the template:
 
 ```sh
-uv sync --all-extras
 cp .env.sample .env
-uv run navigator --preset live
 ```
 
-Fill in `GEMINI_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in
-`.env`; the value `placeholder` counts as absent. The UI is served at
-<http://127.0.0.1:8000>.
+Set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in `.env`; the value
+`placeholder` counts as absent. From the repository root, run:
+
+```sh
+uv run --all-extras navigator --preset phone \
+  --set phone_host=0.0.0.0 \
+  --set web_host=0.0.0.0 \
+  --adapter scene_reasoner=labeller \
+  --set trigger_min_interval_s=0.13 \
+  --set trigger_keepalive_s=0.13
+```
+
+The phone's browser needs HTTPS to use its camera. Point an HTTPS tunnel at
+`http://127.0.0.1:8001` and open the tunnel URL on the phone. The dashboard is
+at <http://127.0.0.1:8000> on the host; use a separate tunnel to port 8000 only
+if you need to view it remotely. This command listens on all interfaces, and
+the dashboard can show live camera frames. Use a trusted network and keep
+remote access private.
+
+### Webcam alternative
+
+To use a webcam and play audio on the host instead, also set `GEMINI_API_KEY`
+in `.env` and run:
+
+```sh
+uv run --all-extras navigator --preset live
+```
+
+### Presets and options
 
 | Preset | Camera | Perception | Reasoning | Speech | Audio out | Events |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -111,11 +139,6 @@ Options:
 - `--set key=value` overrides any field of `Settings` in
   `src/navigator/bootstrap/config.py`, such as `--set stop_m=1.2`.
 - `--duration-s N` stops the run after N seconds.
-
-The `phone` preset serves a capture page on port 8001. The phone needs to
-reach it over HTTPS; we used a Cloudflare tunnel
-(`cloudflared tunnel --url http://127.0.0.1:8001`) and opened the tunnel URL
-in the phone browser. Frames go up and speech comes down over one WebSocket.
 
 ## Measured latency
 
