@@ -21,23 +21,14 @@ right."
 
 ## How it works
 
-```
-Camera (30 fps)
-      │
-      ▼
-Perception (local GPU)       Depth Anything 3 Metric-Large → 45 zone
-      │                      distances (3 rows × 15 columns), every frame
-      ├──────────────────────────────┐
-      ▼                              ▼
-Hazard tier (local)          Guidance tier
-rules on distances →         local steering every frame, plus
-cached "Caution" / "Stop"    Gemini → ElevenLabs when the scene changes
-      │                              │
-      └──────────────┬───────────────┘
-                     ▼
-              Speech arbiter         hazards interrupt guidance,
-                     ▼               stale speech is dropped
-                Headphones
+```mermaid
+flowchart TD
+    camera["Camera (30 fps)"] --> perception["Perception (local GPU)<br/>Depth Anything 3 Metric-Large<br/>45 zone distances (3 rows × 15 columns) per frame"]
+    perception --> hazard["Hazard tier (local)<br/>Distance rules trigger cached Caution or Stop alerts"]
+    perception --> guidance["Guidance tier<br/>Local steering every frame<br/>Gemini → ElevenLabs when the scene changes"]
+    hazard --> arbiter["Speech arbiter<br/>Hazards interrupt guidance<br/>Stale speech is dropped"]
+    guidance --> arbiter
+    arbiter --> headphones["Headphones"]
 ```
 
 Two tiers exist because a cloud call cannot meet the 300 ms hazard bound:
